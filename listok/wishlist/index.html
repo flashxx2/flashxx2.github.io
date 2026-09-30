@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Список желаний</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<!--
+  Страница, которую открывает родственник по ссылке из «Листка».
+
+  Своего сервера у приложения нет: список лежит в ПУБЛИЧНОЙ базе CloudKit, а она читается без
+  учётной записи iCloud через CloudKit Web Services. Поэтому ссылку открывает кто угодно — Android,
+  рабочий ноутбук, браузер без входа, — а страница остаётся статикой на бесплатном хостинге.
+
+  Токен записи идёт во фрагменте адреса (после «#»): фрагмент не уходит на сервер ни в запросе,
+  ни в Referer, поэтому ссылка не оседает в журналах хостинга.
+
+  Пока контейнер iCloud не заведён, открывайте с ?demo=1 — страница возьмёт образец из demo.json
+  и нарисует то же самое.
+-->
+<style>
+  :root {
+    --bg: #F4F3EF; --card: #FFFFFF; --text: #1B1A17; --sub: #5E5B54;
+    --line: #E4E1DA; --accent: #AE4319; --accent-soft: #FBEAE2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151410; --card: #1F1E19; --text: #F2EFE8; --sub: #B0ABA0;
+      --line: #2F2D26; --accent: #E8845C; --accent-soft: #3A2419;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 24px 16px 40px;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 30px; line-height: 1.15; margin: 0 0 4px; font-weight: 700; letter-spacing: -0.01em; }
+  .event { color: var(--sub); font-size: 15px; margin: 0 0 24px; }
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  li {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 12px; display: flex; gap: 12px; align-items: flex-start;
+  }
+  .cover { width: 84px; height: 84px; border-radius: 10px; object-fit: cover; flex: none; background: var(--bg); }
+  .body { flex: 1; min-width: 0; }
+  .row { display: flex; gap: 12px; align-items: baseline; }
+  .title { font-weight: 600; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .price { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .stars { color: var(--accent); font-size: 13px; letter-spacing: 2px; margin-top: 2px; }
+  .shop { display: inline-block; margin-top: 6px; font-size: 14px; color: var(--accent); text-decoration: none; }
+  .shop:hover { text-decoration: underline; }
+  .note { color: var(--sub); font-size: 14px; }
+  footer { margin-top: 32px; text-align: center; color: var(--sub); font-size: 14px; }
+  footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  .hint {
+    margin-top: 20px; padding: 12px 14px; background: var(--accent-soft);
+    border-radius: 12px; font-size: 14px; color: var(--text);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title">Список желаний</h1>
+  <p class="event" id="event"></p>
+  <ul id="items"></ul>
+  <p class="note" id="status">Загружаем список…</p>
+  <div class="hint" id="hint" hidden>
+    Отметить «я дарю это» здесь нельзя — страница только показывает. Договоритесь между собой,
+    чтобы не купить одно и то же дважды.
+  </div>
+  <footer>
+    Список собран в приложении <a href="https://apps.apple.com/app/id0000000000">«Листок»</a> —
+    задачи, заметки и вишлисты без аккаунта.
+  </footer>
+</div>
+
+<script>
+// Контейнер и ключ подставляются после того, как контейнер iCloud заведён в аккаунте разработчика.
+// Ключ CloudKit API Token даёт доступ только на чтение публичной базы — его не прячут.
+const CONTAINER = "iCloud.dev.zagirnur.todo";
+const API_TOKEN = "";           // ← вставить после создания контейнера
+const RECORD_TYPE = "PublicWishlist";
+
+const $ = (id) => document.getElementById(id);
+const escape = (s) => String(s).replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function money(value, currency) {
+  if (value === null || value === undefined) return "";
+  // Пробелы между разрядами — как в приложении.
+  return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " " + currency;
+}
+
+function untilEvent(seconds) {
+  if (!seconds) return "";
+  const days = Math.ceil((seconds * 1000 - Date.now()) / 86400000);
+  if (days < 0) return "уже прошло";
+  if (days === 0) return "сегодня";
+  if (days === 1) return "завтра";
+  const tail = days % 100 >= 11 && days % 100 <= 14 ? "дней"
+    : days % 10 === 1 ? "день" : days % 10 >= 2 && days % 10 <= 4 ? "дня" : "дней";
+  return `через ${days} ${tail}`;
+}
+
+function render(list) {
+  document.title = list.title || "Список желаний";
+  $("title").textContent = list.title || "Список желаний";
+  const when = untilEvent(list.eventDate);
+  $("event").textContent = when ? `Событие ${when}` : "";
+
+  if (!list.items || list.items.length === 0) {
+    $("status").textContent = "Пока в списке ничего нет. Загляните позже — он обновляется.";
+    return;
+  }
+
+  $("items").innerHTML = list.items.map((item) => {
+    const cover = item.image
+      ? `<img class="cover" src="${escape(item.image)}" alt="" loading="lazy">`
+      : "";
+    const price = item.price !== null && item.price !== undefined
+      ? `<span class="price">${escape(money(item.price, list.currency || "₽"))}</span>` : "";
+    // Ссылка на магазин — самое полезное для того, кто пойдёт покупать.
+    const shop = item.url
+      ? `<a class="shop" href="${escape(item.url)}" target="_blank" rel="noopener noreferrer nofollow">Посмотреть в магазине →</a>`
+      : "";
+    const stars = "★".repeat(Math.max(1, Math.min(3, item.stars || 1)));
+    return `<li>${cover}<div class="body">
+      <div class="row"><span class="title">${escape(item.title)}</span>${price}</div>
+      <div class="stars" title="Насколько хочется">${stars}</div>${shop}
+    </div></li>`;
+  }).join("");
+
+  $("status").textContent = "";
+  $("hint").hidden = false;
+}
+
+function fail(message) {
+  $("status").textContent = message;
+}
+
+async function load() {
+  const params = new URLSearchParams(location.search);
+  if (params.get("demo")) {
+    // Образец: страницу можно смотреть и править до того, как заведён контейнер iCloud.
+    const res = await fetch("demo.json");
+    return render(await res.json());
+  }
+
+  const token = location.hash.slice(1);
+  if (!/^[a-hj-km-np-z2-9]{22}$/.test(token)) {
+    return fail("Ссылка неполная. Попросите прислать её ещё раз целиком.");
+  }
+  if (!API_TOKEN) {
+    return fail("Страница ещё не подключена к хранилищу.");
+  }
+
+  const url = `https://api.apple-cloudkit.com/database/1/${CONTAINER}/production/public/records/lookup?ckAPIToken=${encodeURIComponent(API_TOKEN)}`;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ records: [{ recordName: token }] }),
+    });
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    const record = data.records && data.records[0];
+    if (!record || record.serverErrorCode) {
+      return fail("Списка по этой ссылке нет. Возможно, доступ закрыли.");
+    }
+    render(JSON.parse(record.fields.payload.value));
+  } catch (e) {
+    fail("Не получилось загрузить список. Попробуйте обновить страницу.");
+  }
+}
+
+load();
+</script>
+</body>
+</html>

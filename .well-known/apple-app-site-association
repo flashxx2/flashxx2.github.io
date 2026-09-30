@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["K8922Y6R3M.dev.zagirnur.todo"],
+        "components": [
+          { "/": "/listok/task/", "comment": "Задача, присланная ссылкой" },
+          { "/": "/listok/task/*", "comment": "То же с хвостом в пути" }
+        ]
+      }
+    ]
+  }
+}

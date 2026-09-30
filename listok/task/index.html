@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Задача</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<!--
+  Страница для того, кому прислали задачу из «Листка», а приложения у него нет или ссылка
+  открылась в браузере.
+
+  Задача едет целиком во фрагменте адреса (после «#»): фрагмент не уходит на сервер ни в запросе,
+  ни в Referer, поэтому содержимое чужих задач хостингу неизвестно. Разбираем его здесь, на
+  устройстве, и ничего никуда не отправляем — на странице нет ни одного внешнего запроса.
+
+  Если приложение установлено, iOS сюда даже не заходит: адрес перехватывается как universal link
+  по заявке в /.well-known/apple-app-site-association.
+-->
+<style>
+  :root {
+    --bg: #F4F3EF; --card: #FFFFFF; --text: #1B1A17; --sub: #5E5B54;
+    --line: #E4E1DA; --accent: #AE4319; --accent-soft: #FBEAE2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151410; --card: #1F1E19; --text: #F2EFE8; --sub: #B0ABA0;
+      --line: #2F2D26; --accent: #E8845C; --accent-soft: #3A2419;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 32px 16px 40px;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; }
+  .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--sub); }
+  h1 { font-size: 28px; line-height: 1.2; margin: 6px 0 16px; font-weight: 700; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 16px; margin-bottom: 16px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font-size: 13px; padding: 5px 10px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent);
+  }
+  .chip.plain { background: var(--line); color: var(--sub); }
+  a.open {
+    display: block; text-align: center; text-decoration: none; font-weight: 700;
+    background: var(--accent); color: var(--bg); padding: 14px; border-radius: 14px;
+  }
+  p.note { color: var(--sub); font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Задача из «Листка»</div>
+  <h1 id="title">…</h1>
+  <div class="card"><div class="chips" id="chips"></div></div>
+  <a class="open" id="open" href="#">Открыть в «Листке»</a>
+  <p class="note" id="note"></p>
+</div>
+<script>
+  const DAYS = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+  const MONTHS = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+
+  function decode(hash) {
+    const dot = hash.indexOf('.');
+    if (dot < 0 || hash.slice(0, dot) !== 'v1') return null;
+    let s = hash.slice(dot + 1).replace(/-/g, '+').replace(/_/g, '/');
+    while (s.length % 4) s += '=';
+    try {
+      const bytes = Uint8Array.from(atob(s), c => c.charCodeAt(0));
+      return JSON.parse(new TextDecoder().decode(bytes));
+    } catch (e) { return null; }
+  }
+
+  function when(due) {
+    if (!due) return null;
+    const d = new Date(due.date * 1000);
+    let s = DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()];
+    if (due.hasTime) s += ', ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+    return s;
+  }
+
+  function chip(text, plain) {
+    const el = document.createElement('span');
+    el.className = plain ? 'chip plain' : 'chip';
+    el.textContent = text;
+    document.getElementById('chips').appendChild(el);
+  }
+
+  const hash = location.hash.replace(/^#/, '');
+  const task = hash ? decode(hash) : null;
+
+  if (!task || !task.t) {
+    document.getElementById('title').textContent = 'Ссылка не читается';
+    document.getElementById('note').textContent =
+      'Похоже, адрес оборвался при пересылке. Попросите прислать его целиком.';
+    document.getElementById('open').style.display = 'none';
+  } else {
+    document.title = task.t;
+    document.getElementById('title').textContent = task.t;
+    const due = when(task.d);
+    if (due) chip('📅 ' + due);
+    const deadline = when(task.dl);
+    if (deadline) chip('🏁 до ' + deadline);
+    if (task.p && task.p < 4) chip('Приоритет ' + task.p);
+    (task.l || []).forEach(name => chip('@' + name, true));
+    if (task.pr) chip(task.pr, true);
+    document.getElementById('open').href = 'todo://share#' + hash;
+    document.getElementById('note').textContent =
+      'Кнопка откроет задачу в «Листке», если он установлен. Ничего не добавится само: вы увидите её перед тем, как согласиться.';
+  }
+</script>
+</body>
+</html>

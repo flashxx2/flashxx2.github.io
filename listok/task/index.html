@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" id="html">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -16,6 +16,10 @@
 
   Если приложение установлено, iOS сюда даже не заходит: адрес перехватывается как universal link
   по заявке в /.well-known/apple-app-site-association.
+
+  Языки те же четыре, что и в приложении, и берутся у браузера: задачу присылают тому, у кого
+  «Листка» может и не быть вовсе, — значит, и языка отправителя у него тоже может не быть.
+  Неизвестный язык получает английский, как и в `Loc.s`.
 -->
 <style>
   :root {
@@ -56,15 +60,111 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="eyebrow">Задача из «Листка»</div>
+  <div class="eyebrow" id="eyebrow"></div>
   <h1 id="title">…</h1>
   <div class="card"><div class="chips" id="chips"></div></div>
-  <a class="open" id="open" href="#">Открыть в «Листке»</a>
+  <a class="open" id="open" href="#"></a>
   <p class="note" id="note"></p>
 </div>
 <script>
-  const DAYS = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
-  const MONTHS = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  const STRINGS = {
+    ru: {
+      eyebrow: 'Задача из «Листка»', open: 'Открыть в «Листке»', deadline: 'до ', priority: 'Приоритет ',
+      broken: 'Ссылка не читается',
+      brokenNote: 'Похоже, адрес оборвался при пересылке. Попросите прислать его целиком.',
+      note: 'Кнопка откроет задачу в «Листке», если он установлен. Ничего не добавится само: вы увидите её перед тем, как согласиться.',
+      days: ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'],
+      months: ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'],
+      date: (d, day, month) => `${day}, ${d.getDate()} ${month}`,
+    },
+    en: {
+      eyebrow: 'A task from Leaflet', open: 'Open in Leaflet', deadline: 'by ', priority: 'Priority ',
+      broken: 'This link is unreadable',
+      brokenNote: 'It looks like the address was cut short on the way. Ask for the whole thing.',
+      note: 'The button opens the task in Leaflet if you have it. Nothing is added on its own: you see the task before you accept it.',
+      days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+      months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+      date: (d, day, month) => `${day}, ${month} ${d.getDate()}`,
+    },
+    es: {
+      eyebrow: 'Una tarea de Leaflet', open: 'Abrir en Leaflet', deadline: 'antes del ', priority: 'Prioridad ',
+      broken: 'No se puede leer el enlace',
+      brokenNote: 'Parece que la dirección se cortó por el camino. Pide que te la envíen entera.',
+      note: 'El botón abre la tarea en Leaflet si lo tienes instalado. No se añade nada solo: verás la tarea antes de aceptarla.',
+      days: ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'],
+      months: ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'],
+      date: (d, day, month) => `${day}, ${d.getDate()} ${month}`,
+    },
+    de: {
+      eyebrow: 'Eine Aufgabe aus Leaflet', open: 'In Leaflet öffnen', deadline: 'bis ', priority: 'Priorität ',
+      broken: 'Der Link lässt sich nicht lesen',
+      brokenNote: 'Die Adresse ist beim Weiterleiten wohl abgeschnitten worden. Bitte um die vollständige.',
+      note: 'Der Knopf öffnet die Aufgabe in Leaflet, falls du es hast. Von allein wird nichts hinzugefügt: du siehst die Aufgabe, bevor du zustimmst.',
+      days: ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'],
+      months: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
+      date: (d, day, month) => `${day}, ${d.getDate()}. ${month}`,
+    },
+    fr: {
+      eyebrow: 'Une tâche de Leaflet', open: 'Ouvrir dans Leaflet', deadline: 'avant le ', priority: 'Priorité ',
+      broken: 'Ce lien est illisible',
+      brokenNote: 'L’adresse semble avoir été coupée en route. Demandez qu’on vous l’envoie en entier.',
+      note: 'Le bouton ouvre la tâche dans Leaflet s’il est installé. Rien n’est ajouté tout seul : vous verrez la tâche avant de l’accepter.',
+      days: ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'],
+      months: ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'],
+      date: (d, day, month) => `${day} ${d.getDate()} ${month}`,
+    },
+    pt: {
+      eyebrow: 'Uma tarefa do Leaflet', open: 'Abrir no Leaflet', deadline: 'até ', priority: 'Prioridade ',
+      broken: 'Não dá para ler este link',
+      brokenNote: 'Parece que o endereço foi cortado no caminho. Peça para enviarem o link inteiro.',
+      note: 'O botão abre a tarefa no Leaflet, se ele estiver instalado. Nada é adicionado sozinho: você vê a tarefa antes de aceitar.',
+      days: ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'],
+      months: ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'],
+      date: (d, day, month) => `${day}, ${d.getDate()} de ${month}`,
+    },
+    it: {
+      eyebrow: 'Un’attività da Leaflet', open: 'Apri in Leaflet', deadline: 'entro ', priority: 'Priorità ',
+      broken: 'Questo link non si legge',
+      brokenNote: 'Sembra che l’indirizzo si sia interrotto per strada. Chiedi di rimandarlo per intero.',
+      note: 'Il pulsante apre l’attività in Leaflet, se è installato. Non viene aggiunto niente da solo: vedrai l’attività prima di accettarla.',
+      days: ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'],
+      months: ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'],
+      date: (d, day, month) => `${day} ${d.getDate()} ${month}`,
+    },
+    ja: {
+      eyebrow: 'Leafletのタスク', open: 'Leafletで開く', deadline: '締め切り ', priority: '優先度 ',
+      broken: 'このリンクは読み取れません',
+      brokenNote: '途中でアドレスが切れてしまったようです。リンク全体をもう一度送ってもらってください。',
+      note: 'Leafletがインストールされていれば、ボタンでタスクが開きます。勝手に追加されることはありません。受け取る前にタスクを確認できます。',
+      days: ['日', '月', '火', '水', '木', '金', '土'],
+      months: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
+      date: (d, day, month) => `${month}月${d.getDate()}日（${day}）`,
+    },
+    zh: {
+      eyebrow: '来自 Leaflet 的任务', open: '在 Leaflet 中打开', deadline: '截止 ', priority: '优先级 ',
+      broken: '无法读取此链接',
+      brokenNote: '地址似乎在转发时被截断了。请让对方重新发送完整链接。',
+      note: '如果已安装 Leaflet，按钮会在其中打开这项任务。不会自动添加：你会先看到任务，再决定是否接受。',
+      days: ['周日', '周一', '周二', '周三', '周四', '周五', '周六'],
+      months: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
+      date: (d, day, month) => `${month}月${d.getDate()}日 ${day}`,
+    },
+    ko: {
+      eyebrow: 'Leaflet에서 온 작업', open: 'Leaflet에서 열기', deadline: '마감 ', priority: '우선순위 ',
+      broken: '이 링크를 읽을 수 없어요',
+      brokenNote: '전달 중에 주소가 잘린 것 같아요. 전체 링크를 다시 보내 달라고 해 주세요.',
+      note: 'Leaflet이 설치되어 있으면 버튼으로 작업이 열려요. 저절로 추가되지 않아요. 받기 전에 작업을 확인할 수 있어요.',
+      days: ['일', '월', '화', '수', '목', '금', '토'],
+      months: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
+      date: (d, day, month) => `${month}월 ${d.getDate()}일 (${day})`,
+    },
+  };
+
+  const lang = (navigator.languages || [navigator.language || 'en'])
+    .map(l => String(l).slice(0, 2).toLowerCase())
+    .find(l => STRINGS[l]) || 'en';
+  const L = STRINGS[lang];
+  document.getElementById('html').lang = lang;
 
   function decode(hash) {
     const dot = hash.indexOf('.');
@@ -77,10 +177,15 @@
     } catch (e) { return null; }
   }
 
+  // Срок «на день» приложение шлёт полднем этого числа по UTC — число и показываем по UTC,
+  // иначе у получателя в другом поясе оно съезжало бы на соседнее. Старые ссылки несут
+  // полночь отправителя — их читаем, как раньше, по своему поясу.
   function when(due) {
     if (!due) return null;
-    const d = new Date(due.date * 1000);
-    let s = DAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS[d.getMonth()];
+    const ms = due.date * 1000;
+    const utcDay = !due.hasTime && ((Math.round(due.date) % 86400) + 86400) % 86400 === 43200;
+    const d = utcDay ? (() => { const u = new Date(ms); return new Date(u.getUTCFullYear(), u.getUTCMonth(), u.getUTCDate()); })() : new Date(ms);
+    let s = L.date(d, L.days[d.getDay()], L.months[d.getMonth()]);
     if (due.hasTime) s += ', ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
     return s;
   }
@@ -95,10 +200,13 @@
   const hash = location.hash.replace(/^#/, '');
   const task = hash ? decode(hash) : null;
 
+  document.getElementById('eyebrow').textContent = L.eyebrow;
+  document.getElementById('open').textContent = L.open;
+
   if (!task || !task.t) {
-    document.getElementById('title').textContent = 'Ссылка не читается';
-    document.getElementById('note').textContent =
-      'Похоже, адрес оборвался при пересылке. Попросите прислать его целиком.';
+    document.title = L.broken;
+    document.getElementById('title').textContent = L.broken;
+    document.getElementById('note').textContent = L.brokenNote;
     document.getElementById('open').style.display = 'none';
   } else {
     document.title = task.t;
@@ -106,13 +214,12 @@
     const due = when(task.d);
     if (due) chip('📅 ' + due);
     const deadline = when(task.dl);
-    if (deadline) chip('🏁 до ' + deadline);
-    if (task.p && task.p < 4) chip('Приоритет ' + task.p);
+    if (deadline) chip('🏁 ' + L.deadline + deadline);
+    if (task.p && task.p < 4) chip(L.priority + task.p);
     (task.l || []).forEach(name => chip('@' + name, true));
     if (task.pr) chip(task.pr, true);
     document.getElementById('open').href = 'todo://share#' + hash;
-    document.getElementById('note').textContent =
-      'Кнопка откроет задачу в «Листке», если он установлен. Ничего не добавится само: вы увидите её перед тем, как согласиться.';
+    document.getElementById('note').textContent = L.note;
   }
 </script>
 </body>

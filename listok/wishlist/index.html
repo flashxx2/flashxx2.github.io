@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" id="html">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -67,14 +67,8 @@
   <p class="event" id="event"></p>
   <ul id="items"></ul>
   <p class="note" id="status">Загружаем список…</p>
-  <div class="hint" id="hint" hidden>
-    Отметить «я дарю это» здесь нельзя — страница только показывает. Договоритесь между собой,
-    чтобы не купить одно и то же дважды.
-  </div>
-  <footer>
-    Список собран в приложении <a href="https://apps.apple.com/app/id0000000000">«Листок»</a> —
-    задачи, заметки и вишлисты без аккаунта.
-  </footer>
+  <div class="hint" id="hint" hidden></div>
+  <footer><span id="footer-lead"></span><a id="footer-app" href="https://apps.apple.com/app/id0000000000"></a><span id="footer-tail"></span></footer>
 </div>
 
 <script>
@@ -88,31 +82,124 @@ const $ = (id) => document.getElementById(id);
 const escape = (s) => String(s).replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+// Тексты на языке того, кто открыл ссылку: список шлют и тем, кто по-русски не читает.
+// Языки — те же десять, что у приложения; незнакомый — английский.
+const STRINGS = {
+  ru: { list: "Список желаний", loading: "Загружаем список…", empty: "Пока в списке ничего нет. Загляните позже — он обновляется.",
+        shop: "Посмотреть в магазине →", stars: "Насколько хочется", past: "уже прошло", event: (w) => `Событие ${w}`,
+        hint: "Отметить «я дарю это» здесь нельзя — страница только показывает. Договоритесь между собой, чтобы не купить одно и то же дважды.",
+        footer: ["Список собран в приложении ", "«Листок»", " — задачи, заметки и вишлисты без аккаунта."],
+        broken: "Ссылка неполная. Попросите прислать её ещё раз целиком.", offline: "Страница ещё не подключена к хранилищу.",
+        missing: "Списка по этой ссылке нет. Возможно, доступ закрыли.", failed: "Не получилось загрузить список. Попробуйте обновить страницу." },
+  en: { list: "Wish list", loading: "Loading the list…", empty: "Nothing on the list yet. Check back later — it gets updated.",
+        shop: "View in store →", stars: "How much it’s wanted", past: "already passed", event: (w) => `Event ${w}`,
+        hint: "You can’t mark “I’m getting this” here — the page only shows the list. Agree among yourselves so nobody buys the same thing twice.",
+        footer: ["List made in ", "Leaflet", " — tasks, notes and wish lists, no account needed."],
+        broken: "The link is incomplete. Ask for the whole link again.", offline: "This page isn’t connected to storage yet.",
+        missing: "There’s no list at this link. Access may have been closed.", failed: "Couldn’t load the list. Try reloading the page." },
+  es: { list: "Lista de deseos", loading: "Cargando la lista…", empty: "La lista aún está vacía. Vuelve más tarde: se actualiza.",
+        shop: "Ver en la tienda →", stars: "Cuántas ganas hay", past: "ya pasó", event: (w) => `Evento ${w}`,
+        hint: "Aquí no se puede marcar «lo regalo yo»: la página solo muestra la lista. Poneos de acuerdo para no comprar lo mismo dos veces.",
+        footer: ["Lista creada en ", "Leaflet", ": tareas, notas y listas de deseos sin cuenta."],
+        broken: "El enlace está incompleto. Pide que te lo envíen entero.", offline: "La página aún no está conectada al almacenamiento.",
+        missing: "No hay ninguna lista en este enlace. Quizá se cerró el acceso.", failed: "No se pudo cargar la lista. Prueba a recargar la página." },
+  de: { list: "Wunschliste", loading: "Liste wird geladen…", empty: "Noch steht nichts auf der Liste. Schau später wieder vorbei – sie wird aktualisiert.",
+        shop: "Im Shop ansehen →", stars: "Wie sehr es gewünscht ist", past: "schon vorbei", event: (w) => `Anlass ${w}`,
+        hint: "„Ich schenke das“ lässt sich hier nicht markieren – die Seite zeigt die Liste nur an. Sprecht euch ab, damit nichts doppelt gekauft wird.",
+        footer: ["Liste erstellt mit ", "Leaflet", " – Aufgaben, Notizen und Wunschlisten ohne Konto."],
+        broken: "Der Link ist unvollständig. Bitte um den ganzen Link.", offline: "Die Seite ist noch nicht mit dem Speicher verbunden.",
+        missing: "Unter diesem Link gibt es keine Liste. Vielleicht wurde der Zugriff beendet.", failed: "Die Liste konnte nicht geladen werden. Lade die Seite neu." },
+  fr: { list: "Liste d’envies", loading: "Chargement de la liste…", empty: "La liste est encore vide. Revenez plus tard : elle est mise à jour.",
+        shop: "Voir en boutique →", stars: "À quel point c’est désiré", past: "déjà passé", event: (w) => `Événement ${w}`,
+        hint: "Impossible d’indiquer « je l’offre » ici : la page ne fait qu’afficher la liste. Mettez-vous d’accord pour ne pas acheter deux fois la même chose.",
+        footer: ["Liste créée dans ", "Leaflet", " : tâches, notes et listes d’envies, sans compte."],
+        broken: "Le lien est incomplet. Demandez qu’on vous le renvoie en entier.", offline: "La page n’est pas encore reliée au stockage.",
+        missing: "Aucune liste à ce lien. L’accès a peut-être été fermé.", failed: "Impossible de charger la liste. Essayez de recharger la page." },
+  pt: { list: "Lista de desejos", loading: "Carregando a lista…", empty: "A lista ainda está vazia. Volte mais tarde — ela é atualizada.",
+        shop: "Ver na loja →", stars: "O quanto é desejado", past: "já passou", event: (w) => `Evento ${w}`,
+        hint: "Não dá para marcar “eu vou dar isso” aqui — a página só mostra a lista. Combinem entre vocês para não comprar a mesma coisa duas vezes.",
+        footer: ["Lista feita no ", "Leaflet", " — tarefas, notas e listas de desejos sem conta."],
+        broken: "O link está incompleto. Peça para enviarem o link inteiro.", offline: "A página ainda não está conectada ao armazenamento.",
+        missing: "Não há lista neste link. Talvez o acesso tenha sido encerrado.", failed: "Não foi possível carregar a lista. Tente recarregar a página." },
+  it: { list: "Lista dei desideri", loading: "Caricamento della lista…", empty: "La lista è ancora vuota. Torna più tardi: viene aggiornata.",
+        shop: "Vedi nel negozio →", stars: "Quanto è desiderato", past: "già passato", event: (w) => `Evento ${w}`,
+        hint: "Qui non si può segnare «lo regalo io»: la pagina mostra solo la lista. Mettetevi d’accordo per non comprare due volte la stessa cosa.",
+        footer: ["Lista creata con ", "Leaflet", ": attività, note e liste dei desideri senza account."],
+        broken: "Il link è incompleto. Chiedi di rimandarlo per intero.", offline: "La pagina non è ancora collegata all’archivio.",
+        missing: "Non c’è nessuna lista a questo link. Forse l’accesso è stato chiuso.", failed: "Impossibile caricare la lista. Prova a ricaricare la pagina." },
+  ja: { list: "ほしい物リスト", loading: "リストを読み込んでいます…", empty: "リストはまだ空です。あとで見てみてください。更新されます。",
+        shop: "ストアで見る →", stars: "ほしい度", past: "終了しました", event: (w) => `イベント: ${w}`,
+        hint: "ここで「これを贈ります」と印を付けることはできません。同じ物を二重に買わないよう、お互いに相談してください。",
+        footer: ["", "Leaflet", " で作成したリスト — アカウント不要のタスク・メモ・ほしい物リスト。"],
+        broken: "リンクが不完全です。全体をもう一度送ってもらってください。", offline: "このページはまだストレージに接続されていません。",
+        missing: "このリンクにはリストがありません。公開が終了した可能性があります。", failed: "リストを読み込めませんでした。ページを再読み込みしてください。" },
+  zh: { list: "心愿单", loading: "正在加载清单…", empty: "清单里还没有内容。稍后再来看看，它会更新。",
+        shop: "在商店中查看 →", stars: "想要的程度", past: "已经过去", event: (w) => `活动：${w}`,
+        hint: "这里无法标记“这个我来送”——页面只展示清单。请彼此商量好，以免重复购买。",
+        footer: ["清单来自 ", "Leaflet", " —— 无需账号的任务、笔记和心愿单。"],
+        broken: "链接不完整。请让对方重新发送完整链接。", offline: "此页面尚未连接到存储。",
+        missing: "此链接下没有清单，可能已关闭访问。", failed: "无法加载清单。请尝试刷新页面。" },
+  ko: { list: "위시리스트", loading: "목록을 불러오는 중…", empty: "아직 목록이 비어 있어요. 나중에 다시 확인해 주세요. 업데이트돼요.",
+        shop: "스토어에서 보기 →", stars: "갖고 싶은 정도", past: "이미 지났어요", event: (w) => `이벤트: ${w}`,
+        hint: "여기서는 “내가 선물할게요”를 표시할 수 없어요. 같은 선물을 두 번 사지 않도록 서로 정해 주세요.",
+        footer: ["", "Leaflet", "에서 만든 목록 — 계정 없이 쓰는 할 일, 메모, 위시리스트."],
+        broken: "링크가 완전하지 않아요. 전체 링크를 다시 보내 달라고 해 주세요.", offline: "이 페이지는 아직 저장소에 연결되지 않았어요.",
+        missing: "이 링크에는 목록이 없어요. 공개가 종료되었을 수 있어요.", failed: "목록을 불러오지 못했어요. 페이지를 새로고침해 보세요." },
+};
+const lang = (navigator.languages || [navigator.language || "en"])
+  .map((l) => String(l).slice(0, 2).toLowerCase())
+  .find((l) => STRINGS[l]) || "en";
+const L = STRINGS[lang];
+$("html").lang = lang;
+document.title = L.list;
+$("title").textContent = L.list;
+$("status").textContent = L.loading;
+$("hint").textContent = L.hint;
+$("footer-lead").textContent = L.footer[0];
+$("footer-app").textContent = L.footer[1];
+$("footer-tail").textContent = L.footer[2];
+
+// Копейки и центы — только если они есть: «$19.99», но «5 000 ₽». Как в приложении.
+const hasCents = (value) => Math.round(Math.abs(value) * 100) % 100 !== 0;
+
+// У каждого желания может быть своя валюта (код «USD»): пишем её так, как принято у читателя.
+function moneyIn(value, code) {
+  const digits = hasCents(value) ? 2 : 0;
+  try {
+    return new Intl.NumberFormat(lang, { style: "currency", currency: code,
+      minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
+  } catch (e) {
+    return money(value, code);
+  }
+}
+
 function money(value, currency) {
   if (value === null || value === undefined) return "";
+  const [whole, cents] = Number(value).toFixed(hasCents(value) ? 2 : 0).split(".");
   // Пробелы между разрядами — как в приложении.
-  return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " " + currency;
+  return whole.replace(/\B(?=(\d{3})+(?!\d))/g, " ") + (cents ? "," + cents : "") + " " + currency;
 }
 
 function untilEvent(seconds) {
   if (!seconds) return "";
   const days = Math.ceil((seconds * 1000 - Date.now()) / 86400000);
-  if (days < 0) return "уже прошло";
-  if (days === 0) return "сегодня";
-  if (days === 1) return "завтра";
-  const tail = days % 100 >= 11 && days % 100 <= 14 ? "дней"
-    : days % 10 === 1 ? "день" : days % 10 >= 2 && days % 10 <= 4 ? "дня" : "дней";
-  return `через ${days} ${tail}`;
+  if (days < 0) return L.past;
+  // «завтра», «через 3 дня», «in 3 days» — с правильным склонением на любом языке.
+  try {
+    return new Intl.RelativeTimeFormat(lang, { numeric: "auto" }).format(days, "day");
+  } catch (e) {
+    return String(days);
+  }
 }
 
 function render(list) {
-  document.title = list.title || "Список желаний";
-  $("title").textContent = list.title || "Список желаний";
+  document.title = list.title || L.list;
+  $("title").textContent = list.title || L.list;
   const when = untilEvent(list.eventDate);
-  $("event").textContent = when ? `Событие ${when}` : "";
+  $("event").textContent = when ? L.event(when) : "";
 
   if (!list.items || list.items.length === 0) {
-    $("status").textContent = "Пока в списке ничего нет. Загляните позже — он обновляется.";
+    $("status").textContent = L.empty;
     return;
   }
 
@@ -121,15 +208,15 @@ function render(list) {
       ? `<img class="cover" src="${escape(item.image)}" alt="" loading="lazy">`
       : "";
     const price = item.price !== null && item.price !== undefined
-      ? `<span class="price">${escape(money(item.price, list.currency || "₽"))}</span>` : "";
+      ? `<span class="price">${escape(item.currency ? moneyIn(item.price, item.currency) : money(item.price, list.currency || "₽"))}</span>` : "";
     // Ссылка на магазин — самое полезное для того, кто пойдёт покупать.
     const shop = item.url
-      ? `<a class="shop" href="${escape(item.url)}" target="_blank" rel="noopener noreferrer nofollow">Посмотреть в магазине →</a>`
+      ? `<a class="shop" href="${escape(item.url)}" target="_blank" rel="noopener noreferrer nofollow">${escape(L.shop)}</a>`
       : "";
     const stars = "★".repeat(Math.max(1, Math.min(3, item.stars || 1)));
     return `<li>${cover}<div class="body">
       <div class="row"><span class="title">${escape(item.title)}</span>${price}</div>
-      <div class="stars" title="Насколько хочется">${stars}</div>${shop}
+      <div class="stars" title="${escape(L.stars)}">${stars}</div>${shop}
     </div></li>`;
   }).join("");
 
@@ -151,10 +238,10 @@ async function load() {
 
   const token = location.hash.slice(1);
   if (!/^[a-hj-km-np-z2-9]{22}$/.test(token)) {
-    return fail("Ссылка неполная. Попросите прислать её ещё раз целиком.");
+    return fail(L.broken);
   }
   if (!API_TOKEN) {
-    return fail("Страница ещё не подключена к хранилищу.");
+    return fail(L.offline);
   }
 
   const url = `https://api.apple-cloudkit.com/database/1/${CONTAINER}/production/public/records/lookup?ckAPIToken=${encodeURIComponent(API_TOKEN)}`;
@@ -168,11 +255,11 @@ async function load() {
     const data = await res.json();
     const record = data.records && data.records[0];
     if (!record || record.serverErrorCode) {
-      return fail("Списка по этой ссылке нет. Возможно, доступ закрыли.");
+      return fail(L.missing);
     }
     render(JSON.parse(record.fields.payload.value));
   } catch (e) {
-    fail("Не получилось загрузить список. Попробуйте обновить страницу.");
+    fail(L.failed);
   }
 }
 

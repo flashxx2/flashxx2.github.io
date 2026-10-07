@@ -29,10 +29,11 @@
 <div class="wrap">
   <div class="eyebrow">Листок · задачи и заметки</div>
   <h1>Конфиденциальность</h1>
-  <p class="lead">Обновлено 4 октября 2026 года.</p>
+  <p class="lead">Обновлено 7 октября 2026 года.</p>
 
-  <div class="card"><strong>Коротко: мы не собираем никаких данных.</strong> У приложения нет сервера, аккаунта,
-  рекламы, аналитики и трекеров. Всё, что вы записываете, хранится на ваших устройствах и в вашем личном iCloud.</div>
+  <div class="card"><strong>Коротко: мы не собираем данные о вас.</strong> В приложении нет аккаунта, рекламы,
+  аналитики и трекеров. Всё, что вы записываете, хранится на ваших устройствах и в вашем личном iCloud. На наш
+  сервер попадает только то, чем вы сами поделились ссылкой: отданная задача или вишлист.</div>
 
   <h2>Что хранится и где</h2>
   <p>Задачи, заметки, вишлисты, проекты, метки, история выполненного и прикреплённые фото лежат в памяти вашего
@@ -53,14 +54,22 @@
   <ul>
     <li>Если вы добавляете в вишлист ссылку на товар, приложение открывает эту страницу напрямую, чтобы взять название,
     цену и картинку. Запрос уходит только на сайт, ссылку на который вы вставили.</li>
-    <li>Если вы делитесь задачей или вишлистом, содержимое передаётся внутри самой ссылки. Страница на
-    flashxx2.github.io показывает его в браузере получателя и ничего не отправляет на сервер.</li>
+    <li>Если вы делегируете задачу, она передаётся внутри самой ссылки, а копия задачи и её статус («взята»,
+    «выполнена») хранятся в Google Firebase (база Firestore в Европе, Франкфурт). Так вы узнаёте, что задачу
+    сделали. Имя, которым вы назвали получателя, видно только вам. Получатель отмечает статус в приложении или на
+    странице flashxx2.github.io.</li>
+    <li>Если вы делитесь вишлистом ссылкой, в Firebase хранится список желаний (название, цена, ссылка на товар,
+    дата события — без фото и заметок), а гости отмечают там, что дарят. Имя гостя необязательно и видно только
+    другим гостям; вы видите лишь, сколько желаний забронировано, пока сами не откроете брони. Закрыли ссылку —
+    список и брони удаляются.</li>
+    <li>Для этого приложение и страницы входят в Firebase анонимно: без имени, почты и пароля — только случайный
+    номер устройства. Для уведомлений «задачу выполнили» Firebase хранит токен уведомлений устройства и язык.</li>
     <li>Синхронизация обменивается данными только с вашим iCloud, через серверы Apple.</li>
     <li>Покупки («Поддержать») проходят через Apple. Мы не получаем ваших платёжных данных.</li>
   </ul>
 
   <h2>Дети</h2>
-  <p>Приложение не собирает данные ни у кого, включая детей.</p>
+  <p>Приложение не собирает данные о ком-либо, включая детей.</p>
 
   <h2>Связь</h2>
   <p>Вопросы о конфиденциальности: <a href="mailto:rit201992@gmail.com">rit201992@gmail.com</a>.</p>
@@ -69,9 +78,10 @@
 
   <div class="eyebrow">Leaflet · tasks and notes</div>
   <h1>Privacy</h1>
-  <p class="lead">Updated October 4, 2026.</p>
-  <div class="card"><strong>In short: we collect no data.</strong> The app has no server, no account, no ads,
-  no analytics and no trackers. Everything you write stays on your devices and in your personal iCloud.</div>
+  <p class="lead">Updated October 7, 2026.</p>
+  <div class="card"><strong>In short: we collect no data about you.</strong> The app has no account, no ads, no
+  analytics and no trackers. Everything you write stays on your devices and in your personal iCloud. Our server only
+  receives what you share by link yourself: a delegated task or a wish list.</div>
   <h2>What is stored and where</h2>
   <p>Tasks, notes, wish lists, projects, labels, your history and attached photos live on your iPhone or iPad and
   sync between your devices through your personal iCloud (a private CloudKit database in your Apple account). Apple
@@ -88,8 +98,16 @@
   <ul>
     <li>When you add a product link to a wish list, the app opens that page directly to read its title, price and image.
     The request goes only to the site whose link you pasted.</li>
-    <li>When you share a task or a wish list, its content travels inside the link itself. The page on flashxx2.github.io
-    shows it in the recipient's browser and sends nothing to a server.</li>
+    <li>When you delegate a task, it travels inside the link, and a copy of the task with its status (“taken”,
+    “done”) is kept in Google Firebase (a Firestore database in Frankfurt, Europe), so you learn when it is done.
+    The name you gave the recipient is visible only to you. The recipient updates the status in the app or on the
+    flashxx2.github.io page.</li>
+    <li>When you share a wish list by link, Firebase keeps the list (title, price, product link, event date — no
+    photos or notes), and guests mark there what they are giving. A guest's name is optional and visible only to other
+    guests; you only see how many wishes are reserved, unless you reveal reservations yourself. Closing the link
+    deletes the list and its reservations.</li>
+    <li>For this the app and the pages sign in to Firebase anonymously: no name, email or password — just a random
+    device number. For “your task is done” notifications Firebase keeps the device's notification token and language.</li>
     <li>Sync exchanges data only with your own iCloud, through Apple's servers.</li>
     <li>Purchases (“Support”) go through Apple. We never receive your payment details.</li>
   </ul>

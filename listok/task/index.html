@@ -5,14 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Задача</title>
 <meta name="robots" content="noindex, nofollow">
-<meta name="referrer" content="no-referrer">
+<meta name="referrer" content="strict-origin">
 <!--
   Страница для того, кому прислали задачу из «Листка», а приложения у него нет или ссылка
   открылась в браузере.
 
   Задача едет целиком во фрагменте адреса (после «#»): фрагмент не уходит на сервер ни в запросе,
   ни в Referer, поэтому содержимое чужих задач хостингу неизвестно. Разбираем его здесь, на
-  устройстве, и ничего никуда не отправляем — на странице нет ни одного внешнего запроса.
+  устройстве.
+
+  Если в задаче есть id (новые ссылки), рядом в Firestore лежит документ delegations/{id} — по нему
+  автор узнаёт, что задачу взяли и сделали. Тогда страница входит в Firebase анонимно (без
+  регистрации) и даёт отметить: «Беру», «Готово», «Вернуть автору». Кто что может записать, решают
+  правила Firestore: двигать статус может только тот, кто взял задачу первым.
 
   Если приложение установлено, iOS сюда даже не заходит: адрес перехватывается как universal link
   по заявке в /.well-known/apple-app-site-association.
@@ -51,6 +56,15 @@
     background: var(--accent-soft); color: var(--accent);
   }
   .chip.plain { background: var(--line); color: var(--sub); }
+  .status { margin: 0 0 16px; }
+  .status p { margin: 0 0 10px; color: var(--sub); font-size: 15px; }
+  .status .buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+  .status button {
+    font: inherit; font-weight: 700; border: 0; border-radius: 12px; padding: 12px 16px; cursor: pointer;
+    background: var(--accent); color: var(--bg); flex: 1; min-width: 140px;
+  }
+  .status button.quiet { background: var(--line); color: var(--text); }
+  .status button:disabled { opacity: 0.5; }
   a.open {
     display: block; text-align: center; text-decoration: none; font-weight: 700;
     background: var(--accent); color: var(--bg); padding: 14px; border-radius: 14px;
@@ -63,6 +77,7 @@
   <div class="eyebrow" id="eyebrow"></div>
   <h1 id="title">…</h1>
   <div class="card"><div class="chips" id="chips"></div></div>
+  <div class="status card" id="status" hidden><p id="status-text"></p><div class="buttons" id="status-buttons"></div></div>
   <a class="open" id="open" href="#"></a>
   <p class="note" id="note"></p>
 </div>
@@ -220,6 +235,144 @@
     if (task.pr) chip(task.pr, true);
     document.getElementById('open').href = 'todo://share#' + hash;
     document.getElementById('note').textContent = L.note;
+  }
+  // Для статуса ниже: задача и язык — из этого же разбора.
+  window.listokTask = task;
+  window.listokLang = lang;
+</script>
+
+<script type="module">
+  // Ключ веб-приложения Firebase. Он не секрет: что можно читать и писать, решают правила
+  // Firestore (Firebase/firestore.rules), а не ключ.
+  const FIREBASE = {
+    apiKey: "AIzaSyDqe15AKwGfhzHZrMUidJlX2Kt6Z9vknlg",
+    authDomain: "listok-584f2.firebaseapp.com",
+    projectId: "listok-584f2",
+    appId: "1:963328153415:web:23d0b0b4d91383d1501e62",
+  };
+  const SDK = 'https://www.gstatic.com/firebasejs/10.12.2';
+
+  const TEXT = {
+    ru: { sent: 'Возьмите задачу — автор увидит, что она у вас.', take: 'Беру задачу',
+          accepted: 'Задача у вас. Отметьте, когда сделаете, — автор узнает.', done: 'Готово', decline: 'Вернуть автору',
+          isDone: 'Сделано — автор уже знает.', reopen: 'Вернуть в работу',
+          declined: 'Вы отказались — задача вернулась к автору.',
+          revoked: 'Автор забрал задачу обратно.', other: 'Эту задачу уже взял другой человек.',
+          error: 'Не получилось. Проверьте интернет и попробуйте ещё раз.' },
+    en: { sent: 'Take the task — the sender will see it’s with you.', take: 'I’ll take it',
+          accepted: 'The task is yours. Mark it when it’s done — the sender will know.', done: 'Done', decline: 'Give it back',
+          isDone: 'Done — the sender already knows.', reopen: 'Reopen',
+          declined: 'You declined — the task went back to the sender.',
+          revoked: 'The sender took the task back.', other: 'Someone else has already taken this task.',
+          error: 'That didn’t work. Check your internet and try again.' },
+    es: { sent: 'Acepta la tarea: quien la envió verá que la tienes tú.', take: 'Acepto la tarea',
+          accepted: 'La tarea es tuya. Márcala cuando termines y lo sabrán.', done: 'Hecho', decline: 'Devolver',
+          isDone: 'Hecho: ya lo saben.', reopen: 'Volver a abrir',
+          declined: 'La rechazaste: la tarea volvió a quien la envió.',
+          revoked: 'Quien la envió la ha retirado.', other: 'Otra persona ya aceptó esta tarea.',
+          error: 'No ha funcionado. Comprueba la conexión e inténtalo de nuevo.' },
+    de: { sent: 'Übernimm die Aufgabe – die Person, die sie geschickt hat, sieht dann, dass sie bei dir ist.', take: 'Ich übernehme das',
+          accepted: 'Die Aufgabe liegt bei dir. Hake sie ab, wenn sie erledigt ist – dann weiß es die andere Person.', done: 'Erledigt', decline: 'Zurückgeben',
+          isDone: 'Erledigt – Bescheid ist schon gegeben.', reopen: 'Wieder öffnen',
+          declined: 'Du hast abgelehnt – die Aufgabe ist zurückgegangen.',
+          revoked: 'Die Aufgabe wurde zurückgenommen.', other: 'Jemand anderes hat diese Aufgabe schon übernommen.',
+          error: 'Das hat nicht geklappt. Prüfe die Verbindung und versuche es noch einmal.' },
+    fr: { sent: 'Prenez la tâche : l’expéditeur verra qu’elle est chez vous.', take: 'Je m’en charge',
+          accepted: 'La tâche est à vous. Cochez-la une fois faite : l’expéditeur sera prévenu.', done: 'Terminé', decline: 'Rendre la tâche',
+          isDone: 'Terminé : l’expéditeur le sait déjà.', reopen: 'Rouvrir',
+          declined: 'Vous avez refusé : la tâche est revenue à l’expéditeur.',
+          revoked: 'L’expéditeur a repris la tâche.', other: 'Quelqu’un d’autre a déjà pris cette tâche.',
+          error: 'Ça n’a pas marché. Vérifiez votre connexion et réessayez.' },
+    pt: { sent: 'Aceite a tarefa — quem enviou vai ver que ela está com você.', take: 'Eu aceito',
+          accepted: 'A tarefa é sua. Marque quando terminar — quem enviou vai saber.', done: 'Feito', decline: 'Devolver',
+          isDone: 'Feito — quem enviou já sabe.', reopen: 'Reabrir',
+          declined: 'Você recusou — a tarefa voltou para quem enviou.',
+          revoked: 'Quem enviou pegou a tarefa de volta.', other: 'Outra pessoa já aceitou esta tarefa.',
+          error: 'Não deu certo. Verifique a internet e tente de novo.' },
+    it: { sent: 'Prendi l’attività: chi l’ha mandata vedrà che è tua.', take: 'Me ne occupo io',
+          accepted: 'L’attività è tua. Segnala quando è fatta: chi l’ha mandata lo saprà.', done: 'Fatto', decline: 'Restituisci',
+          isDone: 'Fatto: lo sanno già.', reopen: 'Riapri',
+          declined: 'Hai rifiutato: l’attività è tornata a chi l’ha mandata.',
+          revoked: 'Chi l’ha mandata se l’è ripresa.', other: 'Qualcun altro ha già preso questa attività.',
+          error: 'Non ha funzionato. Controlla la connessione e riprova.' },
+    ja: { sent: 'タスクを引き受けると、送り主にあなたが担当だと伝わります。', take: '引き受ける',
+          accepted: 'このタスクはあなたの担当です。終わったら完了にしてください。送り主に伝わります。', done: '完了', decline: '送り主に返す',
+          isDone: '完了しました。送り主にも伝わっています。', reopen: '未完了に戻す',
+          declined: '辞退しました。タスクは送り主に戻りました。',
+          revoked: '送り主がタスクを取り消しました。', other: 'このタスクはほかの人が引き受けました。',
+          error: 'うまくいきませんでした。接続を確認して、もう一度お試しください。' },
+    zh: { sent: '接下这项任务，发送者就会看到它由你负责。', take: '我来做',
+          accepted: '任务归你了。完成后勾选，发送者会知道。', done: '完成', decline: '退还给发送者',
+          isDone: '已完成，发送者已经知道了。', reopen: '重新打开',
+          declined: '你已拒绝，任务回到了发送者那里。',
+          revoked: '发送者已收回这项任务。', other: '这项任务已经有人接了。',
+          error: '没有成功。请检查网络后重试。' },
+    ko: { sent: '작업을 맡으면 보낸 사람이 내가 맡았다는 걸 알 수 있어요.', take: '맡을게요',
+          accepted: '내 작업이에요. 끝나면 완료로 표시해 주세요. 보낸 사람에게 알려져요.', done: '완료', decline: '돌려주기',
+          isDone: '완료했어요. 보낸 사람도 이미 알아요.', reopen: '다시 진행',
+          declined: '거절했어요. 작업이 보낸 사람에게 돌아갔어요.',
+          revoked: '보낸 사람이 작업을 회수했어요.', other: '다른 사람이 이미 이 작업을 맡았어요.',
+          error: '실패했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.' },
+  };
+
+  const task = window.listokTask;
+  const T = TEXT[window.listokLang] || TEXT.en;
+  const box = document.getElementById('status');
+  const text = document.getElementById('status-text');
+  const buttons = document.getElementById('status-buttons');
+
+  if (task && task.id && /^[a-hj-km-np-z2-9]{22}$/.test(task.id)) {
+    try {
+      const { initializeApp } = await import(`${SDK}/firebase-app.js`);
+      const { getAuth, signInAnonymously } = await import(`${SDK}/firebase-auth.js`);
+      const fs = await import(`${SDK}/firebase-firestore.js`);
+      const app = initializeApp(FIREBASE);
+      const me = (await signInAnonymously(getAuth(app))).user.uid;
+      const ref = fs.doc(fs.getFirestore(app), 'delegations', task.id);
+
+      const set = (status, extra) => fs.updateDoc(ref, Object.assign(
+        { status, assignee: me, updatedAt: fs.serverTimestamp() }, extra || {}));
+
+      const button = (label, quiet, action) => {
+        const b = document.createElement('button');
+        b.textContent = label;
+        if (quiet) b.className = 'quiet';
+        b.onclick = async () => {
+          b.disabled = true;
+          try { await action(); } catch (e) { text.textContent = T.error; b.disabled = false; }
+        };
+        buttons.appendChild(b);
+      };
+
+      // Живое состояние: отметили на другом устройстве — страница сразу это показывает.
+      fs.onSnapshot(ref, (snap) => {
+        buttons.innerHTML = '';
+        if (!snap.exists()) { box.hidden = true; return; }
+        const d = snap.data();
+        box.hidden = false;
+        const mine = d.assignee === me;
+        if (d.status === 'revoked') {
+          text.textContent = T.revoked;
+        } else if (d.assignee && !mine) {
+          text.textContent = T.other;
+        } else if (d.status === 'sent' || !d.assignee) {
+          text.textContent = T.sent;
+          button(T.take, false, () => set('accepted', { acceptedAt: fs.serverTimestamp() }));
+        } else if (d.status === 'accepted') {
+          text.textContent = T.accepted;
+          button(T.done, false, () => set('done', { doneAt: fs.serverTimestamp() }));
+          button(T.decline, true, () => set('declined'));
+        } else if (d.status === 'done') {
+          text.textContent = T.isDone;
+          button(T.reopen, true, () => set('accepted'));
+        } else if (d.status === 'declined') {
+          // Задача уже вернулась к автору — взять её снова можно только по новой ссылке.
+          text.textContent = T.declined;
+        }
+      }, () => { box.hidden = true; });
+    } catch (e) {
+      // Без сети остаётся то, что было: задача и кнопка «Открыть в «Листке»».
+    }
   }
 </script>
 </body>

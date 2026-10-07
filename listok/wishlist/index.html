@@ -5,29 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Список желаний</title>
 <meta name="robots" content="noindex, nofollow">
-<meta name="referrer" content="no-referrer">
+<meta name="referrer" content="strict-origin">
 <!--
-  Страница, которую открывает родственник по ссылке из «Листка».
+  Страница, которую открывает родственник по ссылке из «Листка», — с бронью подарков, как у
+  GiftList, Followish и Giftster.
 
-  Своего сервера у приложения нет: список лежит в ПУБЛИЧНОЙ базе CloudKit, а она читается без
-  учётной записи iCloud через CloudKit Web Services. Поэтому ссылку открывает кто угодно — Android,
-  рабочий ноутбук, браузер без входа, — а страница остаётся статикой на бесплатном хостинге.
+  Список лежит в Firestore (проект listok-584f2) документом wishlists/{токен}, токен — во
+  фрагменте адреса после «#»: фрагмент не уходит на сервер ни в запросе, ни в Referer, поэтому
+  ссылка не оседает в журналах хостинга. Гость входит анонимно — без регистрации и пароля, — и
+  его «Подарю я» становится документом wishlists/{токен}/reservations/{id желания}. Создать его
+  можно, только если его ещё нет: два человека одно желание не займут. Владелец списка брони не
+  видит (это правило Firestore, а не только страницы) — только сколько желаний уже взяли.
 
-  Токен записи идёт во фрагменте адреса (после «#»): фрагмент не уходит на сервер ни в запросе,
-  ни в Referer, поэтому ссылка не оседает в журналах хостинга.
+  Referer — «strict-origin»: Firebase получает только адрес сайта, без пути и фрагмента, а
+  магазины по ссылкам «Посмотреть в магазине» — тоже только сайт.
 
-  Пока контейнер iCloud не заведён, открывайте с ?demo=1 — страница возьмёт образец из demo.json
-  и нарисует то же самое.
+  Без сети и для правки вёрстки: ?demo=1 берёт образец из demo.json.
 -->
 <style>
   :root {
     --bg: #F4F3EF; --card: #FFFFFF; --text: #1B1A17; --sub: #5E5B54;
     --line: #E4E1DA; --accent: #AE4319; --accent-soft: #FBEAE2;
+    --teal: #1F6F66; --teal-soft: #DDF0EC;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #151410; --card: #1F1E19; --text: #F2EFE8; --sub: #B0ABA0;
       --line: #2F2D26; --accent: #E8845C; --accent-soft: #3A2419;
+      --teal: #6FC7BA; --teal-soft: #17302C;
     }
   }
   * { box-sizing: border-box; }
@@ -38,13 +43,13 @@
   }
   .wrap { max-width: 720px; margin: 0 auto; }
   h1 { font-size: 30px; line-height: 1.15; margin: 0 0 4px; font-weight: 700; letter-spacing: -0.01em; }
-  .event { color: var(--sub); font-size: 15px; margin: 0 0 24px; }
+  .event { color: var(--sub); font-size: 15px; margin: 0 0 16px; }
   ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
   li {
     background: var(--card); border: 1px solid var(--line); border-radius: 14px;
     padding: 12px; display: flex; gap: 12px; align-items: flex-start;
   }
-  .cover { width: 84px; height: 84px; border-radius: 10px; object-fit: cover; flex: none; background: var(--bg); }
+  li.taken { opacity: 0.62; }
   .body { flex: 1; min-width: 0; }
   .row { display: flex; gap: 12px; align-items: baseline; }
   .title { font-weight: 600; flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -52,31 +57,53 @@
   .stars { color: var(--accent); font-size: 13px; letter-spacing: 2px; margin-top: 2px; }
   .shop { display: inline-block; margin-top: 6px; font-size: 14px; color: var(--accent); text-decoration: none; }
   .shop:hover { text-decoration: underline; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+  button {
+    font: inherit; font-size: 14px; font-weight: 600; border: 0; border-radius: 999px;
+    padding: 8px 14px; cursor: pointer; background: var(--accent); color: var(--bg);
+    min-height: 36px;
+  }
+  button.quiet { background: var(--line); color: var(--text); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .badge {
+    font-size: 13px; font-weight: 600; padding: 5px 10px; border-radius: 999px;
+    background: var(--teal-soft); color: var(--teal);
+  }
+  input {
+    font: inherit; font-size: 15px; padding: 8px 12px; border-radius: 10px; min-height: 36px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text); flex: 1; min-width: 140px;
+  }
   .note { color: var(--sub); font-size: 14px; }
-  footer { margin-top: 32px; text-align: center; color: var(--sub); font-size: 14px; }
-  footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
   .hint {
-    margin-top: 20px; padding: 12px 14px; background: var(--accent-soft);
+    margin: 0 0 16px; padding: 12px 14px; background: var(--accent-soft);
     border-radius: 12px; font-size: 14px; color: var(--text);
   }
+  .toast { color: var(--accent); font-size: 14px; min-height: 20px; margin-top: 8px; }
+  footer { margin-top: 32px; text-align: center; color: var(--sub); font-size: 14px; }
+  footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1 id="title">Список желаний</h1>
   <p class="event" id="event"></p>
+  <div class="hint" id="hint" hidden></div>
   <ul id="items"></ul>
   <p class="note" id="status">Загружаем список…</p>
-  <div class="hint" id="hint" hidden></div>
-  <footer><span id="footer-lead"></span><a id="footer-app" href="https://apps.apple.com/app/id0000000000"></a><span id="footer-tail"></span></footer>
+  <p class="toast" id="toast" role="status"></p>
+  <footer><span id="footer-lead"></span><a id="footer-app" href="https://apps.apple.com/app/id6817056069"></a><span id="footer-tail"></span></footer>
 </div>
 
-<script>
-// Контейнер и ключ подставляются после того, как контейнер iCloud заведён в аккаунте разработчика.
-// Ключ CloudKit API Token даёт доступ только на чтение публичной базы — его не прячут.
-const CONTAINER = "iCloud.dev.zagirnur.todo";
-const API_TOKEN = "";           // ← вставить после создания контейнера
-const RECORD_TYPE = "PublicWishlist";
+<script type="module">
+// Ключ веб-приложения Firebase. Он не секрет: что можно читать и писать, решают правила
+// Firestore (Firebase/firestore.rules), а не ключ.
+const FIREBASE = {
+  apiKey: "AIzaSyDqe15AKwGfhzHZrMUidJlX2Kt6Z9vknlg",
+  authDomain: "listok-584f2.firebaseapp.com",
+  projectId: "listok-584f2",
+  appId: "1:963328153415:web:23d0b0b4d91383d1501e62",
+};
+const SDK = "https://www.gstatic.com/firebasejs/10.12.2";
 
 const $ = (id) => document.getElementById(id);
 const escape = (s) => String(s).replace(/[&<>"']/g, (c) =>
@@ -87,63 +114,103 @@ const escape = (s) => String(s).replace(/[&<>"']/g, (c) =>
 const STRINGS = {
   ru: { list: "Список желаний", loading: "Загружаем список…", empty: "Пока в списке ничего нет. Загляните позже — он обновляется.",
         shop: "Посмотреть в магазине →", stars: "Насколько хочется", past: "уже прошло", event: (w) => `Событие ${w}`,
-        hint: "Отметить «я дарю это» здесь нельзя — страница только показывает. Договоритесь между собой, чтобы не купить одно и то же дважды.",
+        hint: "Нажмите «Подарю я», чтобы никто не купил то же самое. Хозяин списка не увидит, кто что выбрал, — сюрприз останется сюрпризом.",
+        reserve: "Подарю я", name: "Ваше имя — необязательно", confirm: "Забронировать", cancel: "Отмена",
+        taken: "Забронировано", takenBy: (n) => `Забронировано · ${n}`, bought: "Уже куплено", boughtBy: (n) => `Куплено · ${n}`,
+        mine: "Вы дарите это", mineBought: "Вы купили это", unreserve: "Снять бронь", markBought: "Уже купил",
+        late: "Кто-то успел раньше — это желание уже забронировали.", error: "Не получилось. Проверьте интернет и попробуйте ещё раз.",
         footer: ["Список собран в приложении ", "«Листок»", " — задачи, заметки и вишлисты без аккаунта."],
-        broken: "Ссылка неполная. Попросите прислать её ещё раз целиком.", offline: "Страница ещё не подключена к хранилищу.",
+        broken: "Ссылка неполная. Попросите прислать её ещё раз целиком.",
         missing: "Списка по этой ссылке нет. Возможно, доступ закрыли.", failed: "Не получилось загрузить список. Попробуйте обновить страницу." },
   en: { list: "Wish list", loading: "Loading the list…", empty: "Nothing on the list yet. Check back later — it gets updated.",
         shop: "View in store →", stars: "How much it’s wanted", past: "already passed", event: (w) => `Event ${w}`,
-        hint: "You can’t mark “I’m getting this” here — the page only shows the list. Agree among yourselves so nobody buys the same thing twice.",
+        hint: "Tap “I’ll give this” so nobody buys the same thing. The list owner won’t see who picked what — the surprise stays a surprise.",
+        reserve: "I’ll give this", name: "Your name — optional", confirm: "Reserve", cancel: "Cancel",
+        taken: "Reserved", takenBy: (n) => `Reserved · ${n}`, bought: "Already bought", boughtBy: (n) => `Bought · ${n}`,
+        mine: "You’re giving this", mineBought: "You bought this", unreserve: "Cancel reservation", markBought: "I bought it",
+        late: "Someone got there first — this wish is already reserved.", error: "That didn’t work. Check your internet and try again.",
         footer: ["List made in ", "Leaflet", " — tasks, notes and wish lists, no account needed."],
-        broken: "The link is incomplete. Ask for the whole link again.", offline: "This page isn’t connected to storage yet.",
+        broken: "The link is incomplete. Ask for the whole link again.",
         missing: "There’s no list at this link. Access may have been closed.", failed: "Couldn’t load the list. Try reloading the page." },
   es: { list: "Lista de deseos", loading: "Cargando la lista…", empty: "La lista aún está vacía. Vuelve más tarde: se actualiza.",
         shop: "Ver en la tienda →", stars: "Cuántas ganas hay", past: "ya pasó", event: (w) => `Evento ${w}`,
-        hint: "Aquí no se puede marcar «lo regalo yo»: la página solo muestra la lista. Poneos de acuerdo para no comprar lo mismo dos veces.",
+        hint: "Pulsa «Lo regalo yo» para que nadie compre lo mismo. El dueño de la lista no verá quién eligió qué: la sorpresa sigue siendo sorpresa.",
+        reserve: "Lo regalo yo", name: "Tu nombre (opcional)", confirm: "Reservar", cancel: "Cancelar",
+        taken: "Reservado", takenBy: (n) => `Reservado · ${n}`, bought: "Ya comprado", boughtBy: (n) => `Comprado · ${n}`,
+        mine: "Tú regalas esto", mineBought: "Ya lo compraste", unreserve: "Quitar reserva", markBought: "Ya lo compré",
+        late: "Alguien se adelantó: este deseo ya está reservado.", error: "No ha funcionado. Comprueba la conexión e inténtalo de nuevo.",
         footer: ["Lista creada en ", "Leaflet", ": tareas, notas y listas de deseos sin cuenta."],
-        broken: "El enlace está incompleto. Pide que te lo envíen entero.", offline: "La página aún no está conectada al almacenamiento.",
+        broken: "El enlace está incompleto. Pide que te lo envíen entero.",
         missing: "No hay ninguna lista en este enlace. Quizá se cerró el acceso.", failed: "No se pudo cargar la lista. Prueba a recargar la página." },
   de: { list: "Wunschliste", loading: "Liste wird geladen…", empty: "Noch steht nichts auf der Liste. Schau später wieder vorbei – sie wird aktualisiert.",
         shop: "Im Shop ansehen →", stars: "Wie sehr es gewünscht ist", past: "schon vorbei", event: (w) => `Anlass ${w}`,
-        hint: "„Ich schenke das“ lässt sich hier nicht markieren – die Seite zeigt die Liste nur an. Sprecht euch ab, damit nichts doppelt gekauft wird.",
+        hint: "Tippe auf „Ich schenke das“, damit niemand dasselbe kauft. Wer die Liste erstellt hat, sieht nicht, wer was gewählt hat – die Überraschung bleibt.",
+        reserve: "Ich schenke das", name: "Dein Name (optional)", confirm: "Reservieren", cancel: "Abbrechen",
+        taken: "Reserviert", takenBy: (n) => `Reserviert · ${n}`, bought: "Schon gekauft", boughtBy: (n) => `Gekauft · ${n}`,
+        mine: "Du schenkst das", mineBought: "Du hast es gekauft", unreserve: "Reservierung aufheben", markBought: "Schon gekauft",
+        late: "Jemand war schneller – dieser Wunsch ist schon reserviert.", error: "Das hat nicht geklappt. Prüfe die Verbindung und versuche es noch einmal.",
         footer: ["Liste erstellt mit ", "Leaflet", " – Aufgaben, Notizen und Wunschlisten ohne Konto."],
-        broken: "Der Link ist unvollständig. Bitte um den ganzen Link.", offline: "Die Seite ist noch nicht mit dem Speicher verbunden.",
+        broken: "Der Link ist unvollständig. Bitte um den ganzen Link.",
         missing: "Unter diesem Link gibt es keine Liste. Vielleicht wurde der Zugriff beendet.", failed: "Die Liste konnte nicht geladen werden. Lade die Seite neu." },
   fr: { list: "Liste d’envies", loading: "Chargement de la liste…", empty: "La liste est encore vide. Revenez plus tard : elle est mise à jour.",
         shop: "Voir en boutique →", stars: "À quel point c’est désiré", past: "déjà passé", event: (w) => `Événement ${w}`,
-        hint: "Impossible d’indiquer « je l’offre » ici : la page ne fait qu’afficher la liste. Mettez-vous d’accord pour ne pas acheter deux fois la même chose.",
+        hint: "Touchez « Je l’offre » pour que personne n’achète la même chose. La personne qui a créé la liste ne verra pas qui a choisi quoi : la surprise reste entière.",
+        reserve: "Je l’offre", name: "Votre prénom (facultatif)", confirm: "Réserver", cancel: "Annuler",
+        taken: "Réservé", takenBy: (n) => `Réservé · ${n}`, bought: "Déjà acheté", boughtBy: (n) => `Acheté · ${n}`,
+        mine: "Vous offrez ceci", mineBought: "Vous l’avez acheté", unreserve: "Annuler la réservation", markBought: "Je l’ai acheté",
+        late: "Quelqu’un a été plus rapide : ce souhait est déjà réservé.", error: "Ça n’a pas marché. Vérifiez votre connexion et réessayez.",
         footer: ["Liste créée dans ", "Leaflet", " : tâches, notes et listes d’envies, sans compte."],
-        broken: "Le lien est incomplet. Demandez qu’on vous le renvoie en entier.", offline: "La page n’est pas encore reliée au stockage.",
+        broken: "Le lien est incomplet. Demandez qu’on vous le renvoie en entier.",
         missing: "Aucune liste à ce lien. L’accès a peut-être été fermé.", failed: "Impossible de charger la liste. Essayez de recharger la page." },
   pt: { list: "Lista de desejos", loading: "Carregando a lista…", empty: "A lista ainda está vazia. Volte mais tarde — ela é atualizada.",
         shop: "Ver na loja →", stars: "O quanto é desejado", past: "já passou", event: (w) => `Evento ${w}`,
-        hint: "Não dá para marcar “eu vou dar isso” aqui — a página só mostra a lista. Combinem entre vocês para não comprar a mesma coisa duas vezes.",
+        hint: "Toque em “Eu dou este” para ninguém comprar a mesma coisa. Quem criou a lista não verá quem escolheu o quê — a surpresa continua.",
+        reserve: "Eu dou este", name: "Seu nome (opcional)", confirm: "Reservar", cancel: "Cancelar",
+        taken: "Reservado", takenBy: (n) => `Reservado · ${n}`, bought: "Já comprado", boughtBy: (n) => `Comprado · ${n}`,
+        mine: "Você vai dar este", mineBought: "Você comprou este", unreserve: "Tirar reserva", markBought: "Já comprei",
+        late: "Alguém chegou antes — este desejo já foi reservado.", error: "Não deu certo. Verifique a internet e tente de novo.",
         footer: ["Lista feita no ", "Leaflet", " — tarefas, notas e listas de desejos sem conta."],
-        broken: "O link está incompleto. Peça para enviarem o link inteiro.", offline: "A página ainda não está conectada ao armazenamento.",
+        broken: "O link está incompleto. Peça para enviarem o link inteiro.",
         missing: "Não há lista neste link. Talvez o acesso tenha sido encerrado.", failed: "Não foi possível carregar a lista. Tente recarregar a página." },
   it: { list: "Lista dei desideri", loading: "Caricamento della lista…", empty: "La lista è ancora vuota. Torna più tardi: viene aggiornata.",
         shop: "Vedi nel negozio →", stars: "Quanto è desiderato", past: "già passato", event: (w) => `Evento ${w}`,
-        hint: "Qui non si può segnare «lo regalo io»: la pagina mostra solo la lista. Mettetevi d’accordo per non comprare due volte la stessa cosa.",
+        hint: "Tocca «Lo regalo io» così nessuno compra la stessa cosa. Chi ha creato la lista non vedrà chi ha scelto cosa: la sorpresa resta tale.",
+        reserve: "Lo regalo io", name: "Il tuo nome (facoltativo)", confirm: "Prenota", cancel: "Annulla",
+        taken: "Prenotato", takenBy: (n) => `Prenotato · ${n}`, bought: "Già comprato", boughtBy: (n) => `Comprato · ${n}`,
+        mine: "Lo regali tu", mineBought: "L’hai comprato tu", unreserve: "Annulla prenotazione", markBought: "L’ho comprato",
+        late: "Qualcuno è arrivato prima: questo desiderio è già prenotato.", error: "Non ha funzionato. Controlla la connessione e riprova.",
         footer: ["Lista creata con ", "Leaflet", ": attività, note e liste dei desideri senza account."],
-        broken: "Il link è incompleto. Chiedi di rimandarlo per intero.", offline: "La pagina non è ancora collegata all’archivio.",
+        broken: "Il link è incompleto. Chiedi di rimandarlo per intero.",
         missing: "Non c’è nessuna lista a questo link. Forse l’accesso è stato chiuso.", failed: "Impossibile caricare la lista. Prova a ricaricare la pagina." },
   ja: { list: "ほしい物リスト", loading: "リストを読み込んでいます…", empty: "リストはまだ空です。あとで見てみてください。更新されます。",
         shop: "ストアで見る →", stars: "ほしい度", past: "終了しました", event: (w) => `イベント: ${w}`,
-        hint: "ここで「これを贈ります」と印を付けることはできません。同じ物を二重に買わないよう、お互いに相談してください。",
+        hint: "「これを贈る」を押すと、同じ物を誰かが買うのを防げます。リストの持ち主には誰が何を選んだかは見えません。サプライズはそのままです。",
+        reserve: "これを贈る", name: "お名前（任意）", confirm: "予約する", cancel: "キャンセル",
+        taken: "予約済み", takenBy: (n) => `予約済み · ${n}`, bought: "購入済み", boughtBy: (n) => `購入済み · ${n}`,
+        mine: "あなたが贈ります", mineBought: "あなたが購入しました", unreserve: "予約を取り消す", markBought: "購入しました",
+        late: "ほかの人が先に予約しました。", error: "うまくいきませんでした。接続を確認して、もう一度お試しください。",
         footer: ["", "Leaflet", " で作成したリスト — アカウント不要のタスク・メモ・ほしい物リスト。"],
-        broken: "リンクが不完全です。全体をもう一度送ってもらってください。", offline: "このページはまだストレージに接続されていません。",
+        broken: "リンクが不完全です。全体をもう一度送ってもらってください。",
         missing: "このリンクにはリストがありません。公開が終了した可能性があります。", failed: "リストを読み込めませんでした。ページを再読み込みしてください。" },
   zh: { list: "心愿单", loading: "正在加载清单…", empty: "清单里还没有内容。稍后再来看看，它会更新。",
         shop: "在商店中查看 →", stars: "想要的程度", past: "已经过去", event: (w) => `活动：${w}`,
-        hint: "这里无法标记“这个我来送”——页面只展示清单。请彼此商量好，以免重复购买。",
+        hint: "点“我来送”，避免大家买重复。清单主人看不到谁选了什么——惊喜依然是惊喜。",
+        reserve: "我来送", name: "你的名字（可选）", confirm: "预订", cancel: "取消",
+        taken: "已预订", takenBy: (n) => `已预订 · ${n}`, bought: "已购买", boughtBy: (n) => `已购买 · ${n}`,
+        mine: "由你来送", mineBought: "你已购买", unreserve: "取消预订", markBought: "我已购买",
+        late: "有人抢先一步，这个心愿已被预订。", error: "没有成功。请检查网络后重试。",
         footer: ["清单来自 ", "Leaflet", " —— 无需账号的任务、笔记和心愿单。"],
-        broken: "链接不完整。请让对方重新发送完整链接。", offline: "此页面尚未连接到存储。",
+        broken: "链接不完整。请让对方重新发送完整链接。",
         missing: "此链接下没有清单，可能已关闭访问。", failed: "无法加载清单。请尝试刷新页面。" },
   ko: { list: "위시리스트", loading: "목록을 불러오는 중…", empty: "아직 목록이 비어 있어요. 나중에 다시 확인해 주세요. 업데이트돼요.",
         shop: "스토어에서 보기 →", stars: "갖고 싶은 정도", past: "이미 지났어요", event: (w) => `이벤트: ${w}`,
-        hint: "여기서는 “내가 선물할게요”를 표시할 수 없어요. 같은 선물을 두 번 사지 않도록 서로 정해 주세요.",
+        hint: "“내가 선물할게요”를 누르면 같은 선물을 사는 일을 막을 수 있어요. 목록 주인은 누가 무엇을 골랐는지 볼 수 없어요. 깜짝 선물은 그대로예요.",
+        reserve: "내가 선물할게요", name: "이름 (선택)", confirm: "예약하기", cancel: "취소",
+        taken: "예약됨", takenBy: (n) => `예약됨 · ${n}`, bought: "이미 구매함", boughtBy: (n) => `구매함 · ${n}`,
+        mine: "내가 선물해요", mineBought: "내가 구매했어요", unreserve: "예약 취소", markBought: "구매했어요",
+        late: "다른 사람이 먼저 예약했어요.", error: "실패했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.",
         footer: ["", "Leaflet", "에서 만든 목록 — 계정 없이 쓰는 할 일, 메모, 위시리스트."],
-        broken: "링크가 완전하지 않아요. 전체 링크를 다시 보내 달라고 해 주세요.", offline: "이 페이지는 아직 저장소에 연결되지 않았어요.",
+        broken: "링크가 완전하지 않아요. 전체 링크를 다시 보내 달라고 해 주세요.",
         missing: "이 링크에는 목록이 없어요. 공개가 종료되었을 수 있어요.", failed: "목록을 불러오지 못했어요. 페이지를 새로고침해 보세요." },
 };
 const lang = (navigator.languages || [navigator.language || "en"])
@@ -192,21 +259,53 @@ function untilEvent(seconds) {
   }
 }
 
-function render(list) {
+// ---------- Состояние ----------
+
+let list = null;              // сам список (срез из приложения)
+let reservations = {};        // id желания → бронь
+let me = null;                // анонимный uid гостя
+let api = null;               // Firestore: ссылки и функции записи
+let opened = null;            // желание, у которого открыта строка «Ваше имя»
+
+function toast(text) { $("toast").textContent = text || ""; }
+
+function actions(item) {
+  const r = reservations[String(item.id)];
+  if (!api) return "";
+  if (!r) {
+    if (opened === String(item.id)) {
+      return `<div class="actions">
+        <input id="name-${escape(item.id)}" maxlength="40" placeholder="${escape(L.name)}" autocomplete="given-name">
+        <button data-act="confirm" data-id="${escape(item.id)}">${escape(L.confirm)}</button>
+        <button class="quiet" data-act="close">${escape(L.cancel)}</button></div>`;
+    }
+    return `<div class="actions"><button data-act="open" data-id="${escape(item.id)}">${escape(L.reserve)}</button></div>`;
+  }
+  if (r.guest === me) {
+    const label = r.state === "bought" ? L.mineBought : L.mine;
+    const buy = r.state === "bought" ? "" : `<button class="quiet" data-act="bought" data-id="${escape(item.id)}">${escape(L.markBought)}</button>`;
+    return `<div class="actions"><span class="badge">${escape(label)}</span>${buy}
+      <button class="quiet" data-act="release" data-id="${escape(item.id)}">${escape(L.unreserve)}</button></div>`;
+  }
+  const name = (r.name || "").trim();
+  const label = r.state === "bought" ? (name ? L.boughtBy(name) : L.bought) : (name ? L.takenBy(name) : L.taken);
+  return `<div class="actions"><span class="badge">${escape(label)}</span></div>`;
+}
+
+function render() {
   document.title = list.title || L.list;
   $("title").textContent = list.title || L.list;
   const when = untilEvent(list.eventDate);
   $("event").textContent = when ? L.event(when) : "";
 
   if (!list.items || list.items.length === 0) {
+    $("items").innerHTML = "";
     $("status").textContent = L.empty;
+    $("hint").hidden = true;
     return;
   }
 
   $("items").innerHTML = list.items.map((item) => {
-    const cover = item.image
-      ? `<img class="cover" src="${escape(item.image)}" alt="" loading="lazy">`
-      : "";
     const price = item.price !== null && item.price !== undefined
       ? `<span class="price">${escape(item.currency ? moneyIn(item.price, item.currency) : money(item.price, list.currency || "₽"))}</span>` : "";
     // Ссылка на магазин — самое полезное для того, кто пойдёт покупать.
@@ -214,50 +313,92 @@ function render(list) {
       ? `<a class="shop" href="${escape(item.url)}" target="_blank" rel="noopener noreferrer nofollow">${escape(L.shop)}</a>`
       : "";
     const stars = "★".repeat(Math.max(1, Math.min(3, item.stars || 1)));
-    return `<li>${cover}<div class="body">
+    const r = reservations[String(item.id)];
+    const taken = r && r.guest !== me ? " taken" : "";
+    return `<li class="${taken}"><div class="body">
       <div class="row"><span class="title">${escape(item.title)}</span>${price}</div>
       <div class="stars" title="${escape(L.stars)}">${stars}</div>${shop}
+      ${actions(item)}
     </div></li>`;
   }).join("");
 
   $("status").textContent = "";
-  $("hint").hidden = false;
+  $("hint").hidden = !api;
+  if (opened) { const field = $("name-" + opened); if (field) field.focus(); }
 }
 
-function fail(message) {
-  $("status").textContent = message;
-}
+// ---------- Действия гостя ----------
+
+$("items").addEventListener("click", async (event) => {
+  const button = event.target.closest("button");
+  if (!button) return;
+  const id = button.dataset.id;
+  toast("");
+  if (button.dataset.act === "open") { opened = id; return render(); }
+  if (button.dataset.act === "close") { opened = null; return render(); }
+  button.disabled = true;
+  try {
+    if (button.dataset.act === "confirm") {
+      const name = ($("name-" + id)?.value || "").trim().slice(0, 40);
+      await api.reserve(id, name);
+      opened = null;
+    } else if (button.dataset.act === "release") {
+      await api.release(id);
+    } else if (button.dataset.act === "bought") {
+      await api.markBought(id);
+    }
+  } catch (e) {
+    // Бронь уже есть — правила не дали создать вторую.
+    toast(e && e.code === "permission-denied" ? L.late : L.error);
+    button.disabled = false;
+  }
+});
+
+// ---------- Загрузка ----------
+
+function fail(message) { $("status").textContent = message; }
 
 async function load() {
   const params = new URLSearchParams(location.search);
   if (params.get("demo")) {
-    // Образец: страницу можно смотреть и править до того, как заведён контейнер iCloud.
+    // Образец: страницу можно смотреть и править без сети.
     const res = await fetch("demo.json");
-    return render(await res.json());
+    list = await res.json();
+    return render();
   }
 
   const token = location.hash.slice(1);
-  if (!/^[a-hj-km-np-z2-9]{22}$/.test(token)) {
-    return fail(L.broken);
-  }
-  if (!API_TOKEN) {
-    return fail(L.offline);
-  }
+  if (!/^[a-hj-km-np-z2-9]{22}$/.test(token)) return fail(L.broken);
 
-  const url = `https://api.apple-cloudkit.com/database/1/${CONTAINER}/production/public/records/lookup?ckAPIToken=${encodeURIComponent(API_TOKEN)}`;
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ records: [{ recordName: token }] }),
-    });
-    if (!res.ok) throw new Error(res.status);
-    const data = await res.json();
-    const record = data.records && data.records[0];
-    if (!record || record.serverErrorCode) {
-      return fail(L.missing);
-    }
-    render(JSON.parse(record.fields.payload.value));
+    const { initializeApp } = await import(`${SDK}/firebase-app.js`);
+    const { getAuth, signInAnonymously } = await import(`${SDK}/firebase-auth.js`);
+    const fs = await import(`${SDK}/firebase-firestore.js`);
+    const app = initializeApp(FIREBASE);
+    const auth = getAuth(app);
+    me = (await signInAnonymously(auth)).user.uid;
+    const db = fs.getFirestore(app);
+    const listRef = fs.doc(db, "wishlists", token);
+    const reservationsRef = fs.collection(db, "wishlists", token, "reservations");
+
+    api = {
+      reserve: (id, name) => fs.setDoc(fs.doc(reservationsRef, id),
+        Object.assign({ guest: me, state: "reserved", at: fs.serverTimestamp() }, name ? { name } : {})),
+      release: (id) => fs.deleteDoc(fs.doc(reservationsRef, id)),
+      markBought: (id) => fs.updateDoc(fs.doc(reservationsRef, id), { state: "bought", at: fs.serverTimestamp() }),
+    };
+
+    // Живые обновления: кто-то забронировал, пока страница открыта, — кнопка гаснет сразу.
+    fs.onSnapshot(listRef, (snap) => {
+      if (!snap.exists()) { list = null; $("items").innerHTML = ""; $("hint").hidden = true; return fail(L.missing); }
+      try { list = JSON.parse(snap.data().payload); } catch (e) { return fail(L.failed); }
+      render();
+    }, () => fail(L.failed));
+    fs.onSnapshot(reservationsRef, (snap) => {
+      reservations = {};
+      snap.forEach((d) => { reservations[d.id] = d.data(); });
+      if (list) render();
+    }, () => {});
   } catch (e) {
     fail(L.failed);
   }

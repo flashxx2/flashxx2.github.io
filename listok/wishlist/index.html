@@ -43,7 +43,14 @@
   }
   .wrap { max-width: 720px; margin: 0 auto; }
   h1 { font-size: 30px; line-height: 1.15; margin: 0 0 4px; font-weight: 700; letter-spacing: -0.01em; }
-  .event { color: var(--sub); font-size: 15px; margin: 0 0 16px; }
+  /* Дата события — плашкой: к какому дню нужен подарок, гость должен увидеть сразу. */
+  .event {
+    display: inline-flex; align-items: center; gap: 8px; margin: 0 0 16px;
+    padding: 8px 14px; border-radius: 999px; background: var(--teal-soft); color: var(--teal);
+    font-size: 16px; font-weight: 600;
+  }
+  .event:empty { display: none; }
+  .event::before { content: "📅"; font-size: 17px; }
   ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
   li {
     background: var(--card); border: 1px solid var(--line); border-radius: 14px;
@@ -299,7 +306,10 @@ function render() {
   document.title = list.title || L.list;
   $("title").textContent = list.title || L.list;
   const when = untilEvent(list.eventDate);
-  $("event").textContent = when ? L.event(when) : "";
+  // Полная дата и сколько осталось: «10 октября · через 2 дня».
+  let day = "";
+  try { day = new Intl.DateTimeFormat(lang, { day: "numeric", month: "long" }).format(new Date(list.eventDate * 1000)); } catch (e) { day = ""; }
+  $("event").textContent = when ? (day ? day + " · " + when : L.event(when)) : "";
 
   if (!list.items || list.items.length === 0) {
     $("items").innerHTML = "";

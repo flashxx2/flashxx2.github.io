@@ -115,7 +115,7 @@ const escape = (s) => String(s).replace(/[&<>"']/g, (c) =>
 // Языки — те же десять, что у приложения; незнакомый — английский.
 const STRINGS = {
   ru: { list: "Список желаний", loading: "Загружаем список…", empty: "Пока в списке ничего нет. Загляните позже — он обновляется.",
-        shop: "Посмотреть в магазине →", stars: "Насколько хочется", past: "уже прошло", event: (w) => `Событие ${w}`,
+        shop: "Посмотреть в магазине →", starsHint: "Звёзды — насколько хочется: ★★★ — больше всего.", stars: "Насколько хочется", past: "уже прошло", event: (w) => `Событие ${w}`,
         hint: "Нажмите «Подарю я», чтобы никто не купил то же самое. Хозяин списка не увидит, кто что выбрал, — сюрприз останется сюрпризом.",
         reserve: "Подарю я", name: "Ваше имя — необязательно", confirm: "Забронировать", cancel: "Отмена",
         taken: "Забронировано", takenBy: (n) => `Забронировано · ${n}`, bought: "Уже куплено", boughtBy: (n) => `Куплено · ${n}`,
@@ -125,7 +125,7 @@ const STRINGS = {
         broken: "Ссылка неполная. Попросите прислать её ещё раз целиком.",
         missing: "Списка по этой ссылке нет. Возможно, доступ закрыли.", failed: "Не получилось загрузить список. Попробуйте обновить страницу." },
   en: { list: "Wish list", loading: "Loading the list…", empty: "Nothing on the list yet. Check back later — it gets updated.",
-        shop: "View in store →", stars: "How much it’s wanted", past: "already passed", event: (w) => `Event ${w}`,
+        shop: "View in store →", starsHint: "Stars show how much it’s wanted: ★★★ means the most.", stars: "How much it’s wanted", past: "already passed", event: (w) => `Event ${w}`,
         hint: "Tap “I’ll give this” so nobody buys the same thing. The list owner won’t see who picked what — the surprise stays a surprise.",
         reserve: "I’ll give this", name: "Your name — optional", confirm: "Reserve", cancel: "Cancel",
         taken: "Reserved", takenBy: (n) => `Reserved · ${n}`, bought: "Already bought", boughtBy: (n) => `Bought · ${n}`,
@@ -135,7 +135,7 @@ const STRINGS = {
         broken: "The link is incomplete. Ask for the whole link again.",
         missing: "There’s no list at this link. Access may have been closed.", failed: "Couldn’t load the list. Try reloading the page." },
   es: { list: "Lista de deseos", loading: "Cargando la lista…", empty: "La lista aún está vacía. Vuelve más tarde: se actualiza.",
-        shop: "Ver en la tienda →", stars: "Cuántas ganas hay", past: "ya pasó", event: (w) => `Evento ${w}`,
+        shop: "Ver en la tienda →", starsHint: "Las estrellas indican cuántas ganas hay: ★★★ es lo que más.", stars: "Cuántas ganas hay", past: "ya pasó", event: (w) => `Evento ${w}`,
         hint: "Pulsa «Lo regalo yo» para que nadie compre lo mismo. El dueño de la lista no verá quién eligió qué: la sorpresa sigue siendo sorpresa.",
         reserve: "Lo regalo yo", name: "Tu nombre (opcional)", confirm: "Reservar", cancel: "Cancelar",
         taken: "Reservado", takenBy: (n) => `Reservado · ${n}`, bought: "Ya comprado", boughtBy: (n) => `Comprado · ${n}`,
@@ -145,7 +145,7 @@ const STRINGS = {
         broken: "El enlace está incompleto. Pide que te lo envíen entero.",
         missing: "No hay ninguna lista en este enlace. Quizá se cerró el acceso.", failed: "No se pudo cargar la lista. Prueba a recargar la página." },
   de: { list: "Wunschliste", loading: "Liste wird geladen…", empty: "Noch steht nichts auf der Liste. Schau später wieder vorbei – sie wird aktualisiert.",
-        shop: "Im Shop ansehen →", stars: "Wie sehr es gewünscht ist", past: "schon vorbei", event: (w) => `Anlass ${w}`,
+        shop: "Im Shop ansehen →", starsHint: "Sterne zeigen, wie sehr es gewünscht ist: ★★★ am meisten.", stars: "Wie sehr es gewünscht ist", past: "schon vorbei", event: (w) => `Anlass ${w}`,
         hint: "Tippe auf „Ich schenke das“, damit niemand dasselbe kauft. Wer die Liste erstellt hat, sieht nicht, wer was gewählt hat – die Überraschung bleibt.",
         reserve: "Ich schenke das", name: "Dein Name (optional)", confirm: "Reservieren", cancel: "Abbrechen",
         taken: "Reserviert", takenBy: (n) => `Reserviert · ${n}`, bought: "Schon gekauft", boughtBy: (n) => `Gekauft · ${n}`,
@@ -155,7 +155,7 @@ const STRINGS = {
         broken: "Der Link ist unvollständig. Bitte um den ganzen Link.",
         missing: "Unter diesem Link gibt es keine Liste. Vielleicht wurde der Zugriff beendet.", failed: "Die Liste konnte nicht geladen werden. Lade die Seite neu." },
   fr: { list: "Liste d’envies", loading: "Chargement de la liste…", empty: "La liste est encore vide. Revenez plus tard : elle est mise à jour.",
-        shop: "Voir en boutique →", stars: "À quel point c’est désiré", past: "déjà passé", event: (w) => `Événement ${w}`,
+        shop: "Voir en boutique →", starsHint: "Les étoiles indiquent l’envie : ★★★, c’est le plus.", stars: "À quel point c’est désiré", past: "déjà passé", event: (w) => `Événement ${w}`,
         hint: "Touchez « Je l’offre » pour que personne n’achète la même chose. La personne qui a créé la liste ne verra pas qui a choisi quoi : la surprise reste entière.",
         reserve: "Je l’offre", name: "Votre prénom (facultatif)", confirm: "Réserver", cancel: "Annuler",
         taken: "Réservé", takenBy: (n) => `Réservé · ${n}`, bought: "Déjà acheté", boughtBy: (n) => `Acheté · ${n}`,
@@ -165,7 +165,7 @@ const STRINGS = {
         broken: "Le lien est incomplet. Demandez qu’on vous le renvoie en entier.",
         missing: "Aucune liste à ce lien. L’accès a peut-être été fermé.", failed: "Impossible de charger la liste. Essayez de recharger la page." },
   pt: { list: "Lista de desejos", loading: "Carregando a lista…", empty: "A lista ainda está vazia. Volte mais tarde — ela é atualizada.",
-        shop: "Ver na loja →", stars: "O quanto é desejado", past: "já passou", event: (w) => `Evento ${w}`,
+        shop: "Ver na loja →", starsHint: "As estrelas mostram o quanto é desejado: ★★★ é o que mais.", stars: "O quanto é desejado", past: "já passou", event: (w) => `Evento ${w}`,
         hint: "Toque em “Eu dou este” para ninguém comprar a mesma coisa. Quem criou a lista não verá quem escolheu o quê — a surpresa continua.",
         reserve: "Eu dou este", name: "Seu nome (opcional)", confirm: "Reservar", cancel: "Cancelar",
         taken: "Reservado", takenBy: (n) => `Reservado · ${n}`, bought: "Já comprado", boughtBy: (n) => `Comprado · ${n}`,
@@ -175,7 +175,7 @@ const STRINGS = {
         broken: "O link está incompleto. Peça para enviarem o link inteiro.",
         missing: "Não há lista neste link. Talvez o acesso tenha sido encerrado.", failed: "Não foi possível carregar a lista. Tente recarregar a página." },
   it: { list: "Lista dei desideri", loading: "Caricamento della lista…", empty: "La lista è ancora vuota. Torna più tardi: viene aggiornata.",
-        shop: "Vedi nel negozio →", stars: "Quanto è desiderato", past: "già passato", event: (w) => `Evento ${w}`,
+        shop: "Vedi nel negozio →", starsHint: "Le stelle indicano quanto è desiderato: ★★★ è il massimo.", stars: "Quanto è desiderato", past: "già passato", event: (w) => `Evento ${w}`,
         hint: "Tocca «Lo regalo io» così nessuno compra la stessa cosa. Chi ha creato la lista non vedrà chi ha scelto cosa: la sorpresa resta tale.",
         reserve: "Lo regalo io", name: "Il tuo nome (facoltativo)", confirm: "Prenota", cancel: "Annulla",
         taken: "Prenotato", takenBy: (n) => `Prenotato · ${n}`, bought: "Già comprato", boughtBy: (n) => `Comprato · ${n}`,
@@ -185,7 +185,7 @@ const STRINGS = {
         broken: "Il link è incompleto. Chiedi di rimandarlo per intero.",
         missing: "Non c’è nessuna lista a questo link. Forse l’accesso è stato chiuso.", failed: "Impossibile caricare la lista. Prova a ricaricare la pagina." },
   ja: { list: "ほしい物リスト", loading: "リストを読み込んでいます…", empty: "リストはまだ空です。あとで見てみてください。更新されます。",
-        shop: "ストアで見る →", stars: "ほしい度", past: "終了しました", event: (w) => `イベント: ${w}`,
+        shop: "ストアで見る →", starsHint: "星はほしい度です。★★★がいちばんほしい物です。", stars: "ほしい度", past: "終了しました", event: (w) => `イベント: ${w}`,
         hint: "「これを贈る」を押すと、同じ物を誰かが買うのを防げます。リストの持ち主には誰が何を選んだかは見えません。サプライズはそのままです。",
         reserve: "これを贈る", name: "お名前（任意）", confirm: "予約する", cancel: "キャンセル",
         taken: "予約済み", takenBy: (n) => `予約済み · ${n}`, bought: "購入済み", boughtBy: (n) => `購入済み · ${n}`,
@@ -195,7 +195,7 @@ const STRINGS = {
         broken: "リンクが不完全です。全体をもう一度送ってもらってください。",
         missing: "このリンクにはリストがありません。公開が終了した可能性があります。", failed: "リストを読み込めませんでした。ページを再読み込みしてください。" },
   zh: { list: "心愿单", loading: "正在加载清单…", empty: "清单里还没有内容。稍后再来看看，它会更新。",
-        shop: "在商店中查看 →", stars: "想要的程度", past: "已经过去", event: (w) => `活动：${w}`,
+        shop: "在商店中查看 →", starsHint: "星星表示有多想要：★★★ 最想要。", stars: "想要的程度", past: "已经过去", event: (w) => `活动：${w}`,
         hint: "点“我来送”，避免大家买重复。清单主人看不到谁选了什么——惊喜依然是惊喜。",
         reserve: "我来送", name: "你的名字（可选）", confirm: "预订", cancel: "取消",
         taken: "已预订", takenBy: (n) => `已预订 · ${n}`, bought: "已购买", boughtBy: (n) => `已购买 · ${n}`,
@@ -205,7 +205,7 @@ const STRINGS = {
         broken: "链接不完整。请让对方重新发送完整链接。",
         missing: "此链接下没有清单，可能已关闭访问。", failed: "无法加载清单。请尝试刷新页面。" },
   ko: { list: "위시리스트", loading: "목록을 불러오는 중…", empty: "아직 목록이 비어 있어요. 나중에 다시 확인해 주세요. 업데이트돼요.",
-        shop: "스토어에서 보기 →", stars: "갖고 싶은 정도", past: "이미 지났어요", event: (w) => `이벤트: ${w}`,
+        shop: "스토어에서 보기 →", starsHint: "별은 갖고 싶은 정도예요. ★★★가 가장 원하는 것이에요.", stars: "갖고 싶은 정도", past: "이미 지났어요", event: (w) => `이벤트: ${w}`,
         hint: "“내가 선물할게요”를 누르면 같은 선물을 사는 일을 막을 수 있어요. 목록 주인은 누가 무엇을 골랐는지 볼 수 없어요. 깜짝 선물은 그대로예요.",
         reserve: "내가 선물할게요", name: "이름 (선택)", confirm: "예약하기", cancel: "취소",
         taken: "예약됨", takenBy: (n) => `예약됨 · ${n}`, bought: "이미 구매함", boughtBy: (n) => `구매함 · ${n}`,
@@ -223,7 +223,7 @@ $("html").lang = lang;
 document.title = L.list;
 $("title").textContent = L.list;
 $("status").textContent = L.loading;
-$("hint").textContent = L.hint;
+$("hint").textContent = L.hint + " " + L.starsHint;
 $("footer-lead").textContent = L.footer[0];
 $("footer-app").textContent = L.footer[1];
 $("footer-tail").textContent = L.footer[2];

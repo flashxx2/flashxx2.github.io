@@ -50,6 +50,8 @@
     padding: 12px; display: flex; gap: 12px; align-items: flex-start;
   }
   li.taken { opacity: 0.62; }
+  /* Желание, ссылкой на которое поделились: первым и с рамкой. */
+  li.focus { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
   .body { flex: 1; min-width: 0; }
   .row { display: flex; gap: 12px; align-items: baseline; }
   .title { font-weight: 600; flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -266,6 +268,7 @@ let reservations = {};        // id желания → бронь
 let me = null;                // анонимный uid гостя
 let api = null;               // Firestore: ссылки и функции записи
 let opened = null;            // желание, у которого открыта строка «Ваше имя»
+let focus = null;             // желание из ссылки «#токен/id» — показываем первым
 
 function toast(text) { $("toast").textContent = text || ""; }
 
@@ -305,7 +308,9 @@ function render() {
     return;
   }
 
-  $("items").innerHTML = list.items.map((item) => {
+  const isFocus = (item) => focus !== null && String(item.id).toUpperCase() === focus;
+  const items = focus ? [...list.items].sort((a, b) => isFocus(b) - isFocus(a)) : list.items;
+  $("items").innerHTML = items.map((item) => {
     const price = item.price !== null && item.price !== undefined
       ? `<span class="price">${escape(item.currency ? moneyIn(item.price, item.currency) : money(item.price, list.currency || "₽"))}</span>` : "";
     // Ссылка на магазин — самое полезное для того, кто пойдёт покупать.
@@ -315,7 +320,7 @@ function render() {
     const stars = "★".repeat(Math.max(1, Math.min(3, item.stars || 1)));
     const r = reservations[String(item.id)];
     const taken = r && r.guest !== me ? " taken" : "";
-    return `<li class="${taken}"><div class="body">
+    return `<li class="${taken}${isFocus(item) ? " focus" : ""}"><div class="body">
       <div class="row"><span class="title">${escape(item.title)}</span>${price}</div>
       <div class="stars" title="${escape(L.stars)}">${stars}</div>${shop}
       ${actions(item)}
@@ -367,7 +372,9 @@ async function load() {
     return render();
   }
 
-  const token = location.hash.slice(1);
+  // «#токен» — весь список, «#токен/id» — ссылка на одно желание в нём.
+  const [token, wish] = location.hash.slice(1).split("/");
+  focus = wish ? wish.toUpperCase() : null;
   if (!/^[a-hj-km-np-z2-9]{22}$/.test(token)) return fail(L.broken);
 
   try {

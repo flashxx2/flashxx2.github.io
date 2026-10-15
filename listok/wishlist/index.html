@@ -117,6 +117,9 @@ const SDK = "https://www.gstatic.com/firebasejs/10.12.2";
 const $ = (id) => document.getElementById(id);
 const escape = (s) => String(s).replace(/[&<>"']/g, (c) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// Ссылка на магазин — только http(s). Экранирование не мешает адресу «javascript:…», а список
+// пишет его владелец: гости этого сайта не должны выполнять чужой код.
+const safeURL = (u) => (/^https?:\/\//i.test(String(u || "").trim()) ? String(u).trim() : null);
 
 // Тексты на языке того, кто открыл ссылку: список шлют и тем, кто по-русски не читает.
 // Языки — те же десять, что у приложения; незнакомый — английский.
@@ -318,14 +321,20 @@ function render() {
     return;
   }
 
+  // Список перерисовывается целиком на каждое обновление — чужая бронь, правка владельца. Имя,
+  // которое гость в этот момент набирает, переносится в новую строку, а не стирается.
+  const typing = opened ? $("name-" + opened) : null;
+  const typed = typing ? { value: typing.value, start: typing.selectionStart, end: typing.selectionEnd } : null;
+
   const isFocus = (item) => focus !== null && String(item.id).toUpperCase() === focus;
   const items = focus ? [...list.items].sort((a, b) => isFocus(b) - isFocus(a)) : list.items;
   $("items").innerHTML = items.map((item) => {
     const price = item.price !== null && item.price !== undefined
       ? `<span class="price">${escape(item.currency ? moneyIn(item.price, item.currency) : money(item.price, list.currency || "₽"))}</span>` : "";
     // Ссылка на магазин — самое полезное для того, кто пойдёт покупать.
-    const shop = item.url
-      ? `<a class="shop" href="${escape(item.url)}" target="_blank" rel="noopener noreferrer nofollow">${escape(L.shop)}</a>`
+    const url = safeURL(item.url);
+    const shop = url
+      ? `<a class="shop" href="${escape(url)}" target="_blank" rel="noopener noreferrer nofollow">${escape(L.shop)}</a>`
       : "";
     const stars = "★".repeat(Math.max(1, Math.min(3, item.stars || 1)));
     const r = reservations[String(item.id)];
@@ -339,7 +348,13 @@ function render() {
 
   $("status").textContent = "";
   $("hint").hidden = !api;
-  if (opened) { const field = $("name-" + opened); if (field) field.focus(); }
+  if (opened) {
+    const field = $("name-" + opened);
+    if (field) {
+      if (typed) { field.value = typed.value; field.setSelectionRange(typed.start, typed.end); }
+      field.focus();
+    }
+  }
 }
 
 // ---------- Действия гостя ----------

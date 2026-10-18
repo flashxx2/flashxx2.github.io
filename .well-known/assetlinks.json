@@ -1,0 +1,11 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "dev.zagirnur.todo",
+    "sha256_cert_fingerprints": [
+      "09:93:B3:F2:80:14:8A:7B:70:42:39:BD:02:32:3F:15:79:3C:E7:1C:AA:41:4E:E1:DA:31:C1:64:E6:64:DB:C9",
+      "68:53:CF:65:7F:E6:A3:AB:3A:40:B1:F7:60:5E:5E:4F:53:F0:D4:FC:B2:BC:B3:4C:9C:7A:7D:8D:0E:BC:A2:AB"
+    ]
+  }
+}]

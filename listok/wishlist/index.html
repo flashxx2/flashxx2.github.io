@@ -3,6 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Баннер App Store вверху страницы (Safari на iPhone и iPad) — ВЫКЛЮЧЕН до выхода версии, которая
+     открывает ссылки вишлиста у себя (RELEASE.md, «Ссылки вишлиста»). Его «Открыть» запускает
+     установленное приложение со ссылкой (app-argument), а старые версии список не покажут — гость
+     застрял бы в приложении, хотя сейчас бронирует в браузере. Включить — убрать обёртку:
+<meta name="apple-itunes-app" content="app-id=6817056069">
+<script>document.querySelector('meta[name="apple-itunes-app"]').setAttribute("content", "app-id=6817056069, app-argument=" + location.href);</script>
+-->
 <title>Список желаний</title>
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="strict-origin">
@@ -88,6 +95,16 @@
     border-radius: 12px; font-size: 14px; color: var(--text);
   }
   .toast { color: var(--accent); font-size: 14px; min-height: 20px; margin-top: 8px; }
+  .cta {
+    margin-top: 28px; padding: 18px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 16px; text-align: center;
+  }
+  .cta-title { margin: 0 0 6px; font-size: 17px; font-weight: 700; color: var(--text); }
+  .cta-text { margin: 0 0 14px; font-size: 14px; color: var(--sub); line-height: 1.4; }
+  .cta-btn {
+    display: inline-block; padding: 12px 20px; border-radius: 12px; background: var(--accent);
+    color: #fff; font-weight: 700; font-size: 15px; text-decoration: none;
+  }
   footer { margin-top: 32px; text-align: center; color: var(--sub); font-size: 14px; }
   footer a { color: var(--accent); text-decoration: none; font-weight: 600; }
 </style>
@@ -100,6 +117,12 @@
   <ul id="items"></ul>
   <p class="note" id="status">Загружаем список…</p>
   <p class="toast" id="toast" role="status"></p>
+  <!-- Приглашение завести свой список: по ссылке приходят те, у кого «Листка» ещё нет. -->
+  <div class="cta" id="cta" hidden>
+    <p class="cta-title" id="cta-title"></p>
+    <p class="cta-text" id="cta-text"></p>
+    <a class="cta-btn" id="cta-btn" href="https://apps.apple.com/app/id6817056069"></a>
+  </div>
   <footer><span id="footer-lead"></span><a id="footer-app" href="https://apps.apple.com/app/id6817056069"></a><span id="footer-tail"></span></footer>
 </div>
 
@@ -132,6 +155,7 @@ const STRINGS = {
         mine: "Вы дарите это", mineBought: "Вы купили это", unreserve: "Снять бронь", markBought: "Уже купил",
         late: "Кто-то успел раньше — это желание уже забронировали.", error: "Не получилось. Проверьте интернет и попробуйте ещё раз.",
         footer: ["Список собран в приложении ", "«Листок»", " — задачи, заметки и вишлисты без аккаунта."],
+        cta: ["Свой вишлист — бесплатно", "Соберите список подарков в «Листке» и отправьте ссылку близким — они забронируют, что подарят, а сюрприз останется сюрпризом.", "Скачать в App Store"],
         broken: "Ссылка неполная. Попросите прислать её ещё раз целиком.",
         missing: "Списка по этой ссылке нет. Возможно, доступ закрыли.", failed: "Не получилось загрузить список. Попробуйте обновить страницу." },
   en: { list: "Wish list", loading: "Loading the list…", empty: "Nothing on the list yet. Check back later — it gets updated.",
@@ -142,6 +166,7 @@ const STRINGS = {
         mine: "You’re giving this", mineBought: "You bought this", unreserve: "Cancel reservation", markBought: "I bought it",
         late: "Someone got there first — this wish is already reserved.", error: "That didn’t work. Check your internet and try again.",
         footer: ["List made in ", "Leaflet", " — tasks, notes and wish lists, no account needed."],
+        cta: ["Your own wish list — free", "Make a gift list in Leaflet and send the link to family and friends — they reserve what they’ll give, and the surprise stays a surprise.", "Download on the App Store"],
         broken: "The link is incomplete. Ask for the whole link again.",
         missing: "There’s no list at this link. Access may have been closed.", failed: "Couldn’t load the list. Try reloading the page." },
   es: { list: "Lista de deseos", loading: "Cargando la lista…", empty: "La lista aún está vacía. Vuelve más tarde: se actualiza.",
@@ -152,6 +177,7 @@ const STRINGS = {
         mine: "Tú regalas esto", mineBought: "Ya lo compraste", unreserve: "Quitar reserva", markBought: "Ya lo compré",
         late: "Alguien se adelantó: este deseo ya está reservado.", error: "No ha funcionado. Comprueba la conexión e inténtalo de nuevo.",
         footer: ["Lista creada en ", "Leaflet", ": tareas, notas y listas de deseos sin cuenta."],
+        cta: ["Tu propia lista de deseos, gratis", "Crea tu lista de regalos en Leaflet y envía el enlace: reservarán lo que van a regalar y la sorpresa seguirá siéndolo.", "Descargar en el App Store"],
         broken: "El enlace está incompleto. Pide que te lo envíen entero.",
         missing: "No hay ninguna lista en este enlace. Quizá se cerró el acceso.", failed: "No se pudo cargar la lista. Prueba a recargar la página." },
   de: { list: "Wunschliste", loading: "Liste wird geladen…", empty: "Noch steht nichts auf der Liste. Schau später wieder vorbei – sie wird aktualisiert.",
@@ -162,6 +188,7 @@ const STRINGS = {
         mine: "Du schenkst das", mineBought: "Du hast es gekauft", unreserve: "Reservierung aufheben", markBought: "Schon gekauft",
         late: "Jemand war schneller – dieser Wunsch ist schon reserviert.", error: "Das hat nicht geklappt. Prüfe die Verbindung und versuche es noch einmal.",
         footer: ["Liste erstellt mit ", "Leaflet", " – Aufgaben, Notizen und Wunschlisten ohne Konto."],
+        cta: ["Deine eigene Wunschliste – kostenlos", "Erstelle deine Geschenkliste in Leaflet und schick den Link an Familie und Freunde – sie reservieren, was sie schenken, und die Überraschung bleibt eine.", "Im App Store laden"],
         broken: "Der Link ist unvollständig. Bitte um den ganzen Link.",
         missing: "Unter diesem Link gibt es keine Liste. Vielleicht wurde der Zugriff beendet.", failed: "Die Liste konnte nicht geladen werden. Lade die Seite neu." },
   fr: { list: "Liste d’envies", loading: "Chargement de la liste…", empty: "La liste est encore vide. Revenez plus tard : elle est mise à jour.",
@@ -172,6 +199,7 @@ const STRINGS = {
         mine: "Vous offrez ceci", mineBought: "Vous l’avez acheté", unreserve: "Annuler la réservation", markBought: "Je l’ai acheté",
         late: "Quelqu’un a été plus rapide : ce souhait est déjà réservé.", error: "Ça n’a pas marché. Vérifiez votre connexion et réessayez.",
         footer: ["Liste créée dans ", "Leaflet", " : tâches, notes et listes d’envies, sans compte."],
+        cta: ["Votre liste d’envies — gratuite", "Créez votre liste de cadeaux dans Leaflet et envoyez le lien à vos proches : ils réservent ce qu’ils offrent, et la surprise reste entière.", "Télécharger dans l’App Store"],
         broken: "Le lien est incomplet. Demandez qu’on vous le renvoie en entier.",
         missing: "Aucune liste à ce lien. L’accès a peut-être été fermé.", failed: "Impossible de charger la liste. Essayez de recharger la page." },
   pt: { list: "Lista de desejos", loading: "Carregando a lista…", empty: "A lista ainda está vazia. Volte mais tarde — ela é atualizada.",
@@ -182,6 +210,7 @@ const STRINGS = {
         mine: "Você vai dar este", mineBought: "Você comprou este", unreserve: "Tirar reserva", markBought: "Já comprei",
         late: "Alguém chegou antes — este desejo já foi reservado.", error: "Não deu certo. Verifique a internet e tente de novo.",
         footer: ["Lista feita no ", "Leaflet", " — tarefas, notas e listas de desejos sem conta."],
+        cta: ["Sua lista de desejos — grátis", "Monte sua lista de presentes no Leaflet e envie o link: as pessoas reservam o que vão dar, e a surpresa continua surpresa.", "Baixar na App Store"],
         broken: "O link está incompleto. Peça para enviarem o link inteiro.",
         missing: "Não há lista neste link. Talvez o acesso tenha sido encerrado.", failed: "Não foi possível carregar a lista. Tente recarregar a página." },
   it: { list: "Lista dei desideri", loading: "Caricamento della lista…", empty: "La lista è ancora vuota. Torna più tardi: viene aggiornata.",
@@ -192,6 +221,7 @@ const STRINGS = {
         mine: "Lo regali tu", mineBought: "L’hai comprato tu", unreserve: "Annulla prenotazione", markBought: "L’ho comprato",
         late: "Qualcuno è arrivato prima: questo desiderio è già prenotato.", error: "Non ha funzionato. Controlla la connessione e riprova.",
         footer: ["Lista creata con ", "Leaflet", ": attività, note e liste dei desideri senza account."],
+        cta: ["La tua lista dei desideri — gratis", "Crea la tua lista regali in Leaflet e invia il link a chi vuoi: prenotano cosa regalare e la sorpresa resta tale.", "Scarica su App Store"],
         broken: "Il link è incompleto. Chiedi di rimandarlo per intero.",
         missing: "Non c’è nessuna lista a questo link. Forse l’accesso è stato chiuso.", failed: "Impossibile caricare la lista. Prova a ricaricare la pagina." },
   ja: { list: "ほしい物リスト", loading: "リストを読み込んでいます…", empty: "リストはまだ空です。あとで見てみてください。更新されます。",
@@ -202,6 +232,7 @@ const STRINGS = {
         mine: "あなたが贈ります", mineBought: "あなたが購入しました", unreserve: "予約を取り消す", markBought: "購入しました",
         late: "ほかの人が先に予約しました。", error: "うまくいきませんでした。接続を確認して、もう一度お試しください。",
         footer: ["", "Leaflet", " で作成したリスト — アカウント不要のタスク・メモ・ほしい物リスト。"],
+        cta: ["自分のほしい物リストを無料で", "Leaflet でプレゼントのリストを作り、リンクを送るだけ。贈る人が予約するので、サプライズはそのままです。", "App Store からダウンロード"],
         broken: "リンクが不完全です。全体をもう一度送ってもらってください。",
         missing: "このリンクにはリストがありません。公開が終了した可能性があります。", failed: "リストを読み込めませんでした。ページを再読み込みしてください。" },
   zh: { list: "心愿单", loading: "正在加载清单…", empty: "清单里还没有内容。稍后再来看看，它会更新。",
@@ -212,6 +243,7 @@ const STRINGS = {
         mine: "由你来送", mineBought: "你已购买", unreserve: "取消预订", markBought: "我已购买",
         late: "有人抢先一步，这个心愿已被预订。", error: "没有成功。请检查网络后重试。",
         footer: ["清单来自 ", "Leaflet", " —— 无需账号的任务、笔记和心愿单。"],
+        cta: ["免费创建你的心愿单", "在 Leaflet 里列好礼物清单，把链接发给亲友——他们预订要送的礼物，惊喜依然是惊喜。", "在 App Store 下载"],
         broken: "链接不完整。请让对方重新发送完整链接。",
         missing: "此链接下没有清单，可能已关闭访问。", failed: "无法加载清单。请尝试刷新页面。" },
   ko: { list: "위시리스트", loading: "목록을 불러오는 중…", empty: "아직 목록이 비어 있어요. 나중에 다시 확인해 주세요. 업데이트돼요.",
@@ -222,6 +254,7 @@ const STRINGS = {
         mine: "내가 선물해요", mineBought: "내가 구매했어요", unreserve: "예약 취소", markBought: "구매했어요",
         late: "다른 사람이 먼저 예약했어요.", error: "실패했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.",
         footer: ["", "Leaflet", "에서 만든 목록 — 계정 없이 쓰는 할 일, 메모, 위시리스트."],
+        cta: ["나만의 위시리스트 — 무료", "Leaflet에서 선물 목록을 만들고 링크를 보내세요. 받는 사람이 줄 선물을 예약해서 깜짝 선물은 그대로 지켜져요.", "App Store에서 다운로드"],
         broken: "링크가 완전하지 않아요. 전체 링크를 다시 보내 달라고 해 주세요.",
         missing: "이 링크에는 목록이 없어요. 공개가 종료되었을 수 있어요.", failed: "목록을 불러오지 못했어요. 페이지를 새로고침해 보세요." },
 };
@@ -237,6 +270,17 @@ $("hint").textContent = L.hint + " " + L.starsHint;
 $("footer-lead").textContent = L.footer[0];
 $("footer-app").textContent = L.footer[1];
 $("footer-tail").textContent = L.footer[2];
+// Приглашение — с кнопкой App Store. В Google Play приложение пока только в закрытом тесте:
+// на Android приглашение не показываем, пока нет общей ссылки (PLAY).
+const PLAY = null;
+const android = /Android/i.test(navigator.userAgent);
+if (!android || PLAY) {
+  $("cta-title").textContent = L.cta[0];
+  $("cta-text").textContent = L.cta[1];
+  $("cta-btn").textContent = L.cta[2];
+  if (android) $("cta-btn").href = PLAY;
+  $("cta").hidden = false;
+}
 
 // Копейки и центы — только если они есть: «$19.99», но «5 000 ₽». Как в приложении.
 const hasCents = (value) => Math.round(Math.abs(value) * 100) % 100 !== 0;

@@ -285,14 +285,22 @@ if (!android || PLAY) {
 // Копейки и центы — только если они есть: «$19.99», но «5 000 ₽». Как в приложении.
 const hasCents = (value) => Math.round(Math.abs(value) * 100) % 100 !== 0;
 
+// Знаки валют вместо тех, что даёт браузер: на части языков он пишет код («1 500 KZT») или код
+// со знаком («CN¥», «US$»). Те же, что в приложении (Money.signs): юань и иена — «¥»; белорусский
+// рубль — «Br», а не «р.», похожее на российский.
+const SIGNS = { RUB: "₽", USD: "$", EUR: "€", GBP: "£", CNY: "¥", JPY: "¥", KRW: "₩", BRL: "R$", INR: "₹",
+  UAH: "₴", TRY: "₺", KZT: "₸", GEL: "₾", AMD: "֏", AZN: "₼", BYN: "Br" };
+
 // У каждого желания может быть своя валюта (код «USD»): пишем её так, как принято у читателя.
 function moneyIn(value, code) {
   const digits = hasCents(value) ? 2 : 0;
   try {
-    return new Intl.NumberFormat(lang, { style: "currency", currency: code,
-      minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
+    // Знак подменяется частью, а не поиском по строке: порядок и пробелы остаются от языка.
+    const parts = new Intl.NumberFormat(lang, { style: "currency", currency: code,
+      minimumFractionDigits: digits, maximumFractionDigits: digits }).formatToParts(value);
+    return parts.map((p) => (p.type === "currency" && SIGNS[code] ? SIGNS[code] : p.value)).join("");
   } catch (e) {
-    return money(value, code);
+    return money(value, SIGNS[code] || code);
   }
 }
 

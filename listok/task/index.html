@@ -364,7 +364,8 @@
           button(T.decline, true, () => set('declined'));
         } else if (d.status === 'done') {
           text.textContent = T.isDone;
-          button(T.reopen, true, () => set('accepted'));
+          // Без doneAt: так автор (и пуш) понимает, что задача снова в работе, а не что он вернул её сам.
+          button(T.reopen, true, () => set('accepted', { doneAt: fs.deleteField() }));
         } else if (d.status === 'declined') {
           // Задача уже вернулась к автору — взять её снова можно только по новой ссылке.
           text.textContent = T.declined;
